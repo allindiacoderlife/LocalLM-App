@@ -1,0 +1,128 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "locallm",
+            "cwd": "locallm",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "locallm (profile mode)",
+            "cwd": "locallm",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "locallm (release mode)",
+            "cwd": "locallm",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "privateLM",
+            "cwd": "privateLM",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "privateLM (profile mode)",
+            "cwd": "privateLM",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "privateLM (release mode)",
+            "cwd": "privateLM",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "llama_flutter_android",
+            "cwd": "locallm\\local_plugins\\llama_flutter_android",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "llama_flutter_android (profile mode)",
+            "cwd": "locallm\\local_plugins\\llama_flutter_android",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "llama_flutter_android (release mode)",
+            "cwd": "locallm\\local_plugins\\llama_flutter_android",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "flutter_litert_lm",
+            "cwd": "privateLM\\local_plugins\\flutter_litert_lm",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "flutter_litert_lm (profile mode)",
+            "cwd": "privateLM\\local_plugins\\flutter_litert_lm",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "flutter_litert_lm (release mode)",
+            "cwd": "privateLM\\local_plugins\\flutter_litert_lm",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "llama_flutter_android",
+            "cwd": "privateLM\\local_plugins\\llama_flutter_android",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "llama_flutter_android (profile mode)",
+            "cwd": "privateLM\\local_plugins\\llama_flutter_android",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "llama_flutter_android (release mode)",
+            "cwd": "privateLM\\local_plugins\\llama_flutter_android",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "sd_flutter_android",
+            "cwd": "privateLM\\local_plugins\\sd_flutter_android",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "sd_flutter_android (profile mode)",
+            "cwd": "privateLM\\local_plugins\\sd_flutter_android",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "sd_flutter_android (release mode)",
+            "cwd": "privateLM\\local_plugins\\sd_flutter_android",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

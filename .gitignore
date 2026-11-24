@@ -1,0 +1,113 @@
+# ==============================================================================
+# Git Ignore for Flutter & Cross-Platform LLM Client
+# ==============================================================================
+
+# Miscellaneous & System
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+Thumbs.db
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+privateLM/
+
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+.gradle/
+**/android/.gradle/
+**/android/.kotlin/
+
+# VS Code (keep user-specific configs out of VCS)
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+
+# Flutter / Dart / Pub
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+**/build/
+/coverage/
+
+# Android Local Properties & Build Outputs
+**/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/.cxx/
+**/.cxx/
+
+# Android Keystores & Signing Secrets
+*.keystore
+*.jks
+key.properties
+**/key.properties
+
+# iOS / macOS Ephemeral & CocoaPods
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Runner.xcworkspace/xcuserdata/
+**/ios/Runner.xcodeproj/xcuserdata/
+**/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+**/macos/Pods/
+**/macos/Flutter/ephemeral/
+*.ipa
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+
+# Linux / Windows Ephemeral
+**/linux/flutter/ephemeral/
+**/windows/flutter/ephemeral/
+
+# Web Generated
+**/web/flutter_bootstrap.js
+
+# Environment Variables & Secrets
+.env
+.env.*
+*.secret
+secrets/
+google-services.json
+GoogleService-Info.plist
+
+# Symbolication & Obfuscation
+app.*.symbols
+app.*.map.json
+
+# AI Models & Large Checkpoints (Never commit multi-GB files to git)
+*.gguf
+*.bin
+*.onnx
+*.tflite
+*.safetensors
+*.pth
+*.pt
+
+# Local plugin native artifacts
+local_plugins/**/android/src/main/cpp/vulkan-headers/
+local_plugins/**/android/.cxx/
+local_plugins/**/android/build/
+local_plugins/**/ios/llama_ios/lib/*.a
+!local_plugins/**/ios/llama_ios/README.md
