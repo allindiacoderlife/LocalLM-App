@@ -598,7 +598,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
     );
   }
 
-  // ── Composer Capsule matching Screenshot 7 ──
+  // ── Composer Capsule matching Apple Glass Design ──
   Widget _buildInputBar(ChatState state, bool isLocal, LocalInferenceState localState) {
     final hasAttachment = state.attachment != null;
     final isGenerating = state.isGenerating;
@@ -607,7 +607,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
-      color: t.bg,
+      color: Colors.transparent,
       child: SafeArea(
         top: false,
         child: Column(
@@ -615,14 +615,10 @@ class _ChatViewState extends ConsumerState<ChatView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (hasAttachment) ...[
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
+              GlassContainer(
+                borderRadius: 12,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: t.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: t.hairline, width: 0.5),
-                ),
+                margin: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -642,14 +638,12 @@ class _ChatViewState extends ConsumerState<ChatView> {
               ),
             ],
 
-            // Capsule
-            Container(
+            // Floating Apple Glass Input Capsule
+            GlassContainer(
+              borderRadius: 26,
+              color: t.isDark ? const Color(0x331E232E) : const Color(0x88FFFFFF),
+              shadows: t.glassShadows,
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(
-                color: t.surface,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: t.outline, width: 0.8),
-              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [

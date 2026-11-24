@@ -1,15 +1,20 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart' as lg;
 
 import '../widgets/tonal_button.dart';
 import 'haptics.dart';
 
 export '../widgets/tonal_button.dart';
 export 'haptics.dart';
+export 'package:liquid_glass_widgets/liquid_glass_widgets.dart'
+    hide GlassContainer, GlassCard, GlassDivider;
 
-/// Shared design system — clean Apple-inspired visual language for LocalLM:
-/// plain white/black pages, quiet neutral surfaces with hairline borders,
-/// sentence-case section labels, and Apple blue accent.
+/// Apple Glass Design System for iOS 26 — LocalLM:
+/// Translucent frosted glass substrates, specular light-catching borders,
+/// spatial ambient depth, smooth squircle continuous corners, and vibrant
+/// Apple blue/cyan luminous accents.
 class AppTokens {
   final bool isDark;
   final Color bg;
@@ -17,9 +22,15 @@ class AppTokens {
   final Color muted;
   final Color faint;
   final Color accent;
+  final Color accentLight;
+  final Color accentGlow;
   final Color surface;
   final Color surfacePressed;
-  final Color fill; // small neutral fills: icon circles, chips, tracks
+  final Color glass;
+  final Color glassElevated;
+  final Color glassBorder;
+  final Color glassSpecular;
+  final Color fill;
   final Color outline;
   final Color hairline;
   final Color green;
@@ -33,8 +44,14 @@ class AppTokens {
     required this.muted,
     required this.faint,
     required this.accent,
+    required this.accentLight,
+    required this.accentGlow,
     required this.surface,
     required this.surfacePressed,
+    required this.glass,
+    required this.glassElevated,
+    required this.glassBorder,
+    required this.glassSpecular,
     required this.fill,
     required this.outline,
     required this.hairline,
@@ -47,27 +64,65 @@ class AppTokens {
     final d = Theme.of(context).brightness == Brightness.dark;
     return AppTokens._(
       isDark: d,
-      bg: d ? Colors.black : Colors.white,
-      text: d ? Colors.white : const Color(0xFF0B0B0C),
-      muted: d ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73),
-      faint: d ? const Color(0xFF5A5A5F) : const Color(0xFFAEAEB2),
-      accent: d ? const Color(0xFF0A84FF) : const Color(0xFF007AFF),
-      surface: d ? const Color(0xFF141416) : const Color(0xFFF5F5F7),
-      surfacePressed: d ? const Color(0xFF1E1E21) : const Color(0xFFEBEBED),
+      bg: d ? const Color(0xFF07080A) : const Color(0xFFF3F5F8),
+      text: d ? Colors.white : const Color(0xFF0A0B0E),
+      muted: d ? const Color(0xFF98989F) : const Color(0xFF6E6E73),
+      faint: d ? const Color(0xFF5A5A62) : const Color(0xFFAEAEB2),
+      accent: d ? const Color(0xFF0A84FF) : const Color(0xFF0071E3),
+      accentLight: d ? const Color(0xFF409CFF) : const Color(0xFF389BFF),
+      accentGlow: const Color(0xFF00F2FE),
+      surface: d ? const Color(0xFF101217) : const Color(0xFFFFFFFF),
+      surfacePressed: d ? const Color(0xFF1E2129) : const Color(0xFFE5E9EF),
+      glass: d
+          ? const Color(0x24161A22) // Frosted dark glass
+          : const Color(0x90FFFFFF), // Frosted crystal light glass
+      glassElevated: d
+          ? const Color(0x381E2430)
+          : const Color(0xB8FFFFFF),
+      glassBorder: d
+          ? Colors.white.withValues(alpha: 0.16) // Specular rim
+          : Colors.black.withValues(alpha: 0.08),
+      glassSpecular: d
+          ? Colors.white.withValues(alpha: 0.28)
+          : Colors.white.withValues(alpha: 0.85),
       fill: d
           ? Colors.white.withValues(alpha: 0.08)
           : Colors.black.withValues(alpha: 0.05),
       outline: d
-          ? Colors.white.withValues(alpha: 0.14)
-          : Colors.black.withValues(alpha: 0.10),
+          ? Colors.white.withValues(alpha: 0.16)
+          : Colors.black.withValues(alpha: 0.12),
       hairline: d
-          ? Colors.white.withValues(alpha: 0.07)
+          ? Colors.white.withValues(alpha: 0.08)
           : Colors.black.withValues(alpha: 0.06),
       green: d ? const Color(0xFF30D158) : const Color(0xFF28A745),
       orange: d ? const Color(0xFFFF9F0A) : const Color(0xFFE08600),
       red: d ? const Color(0xFFFF453A) : const Color(0xFFE5342B),
     );
   }
+
+  List<BoxShadow> get glassShadows => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.05),
+          blurRadius: 20,
+          offset: const Offset(0, 6),
+          spreadRadius: -2,
+        ),
+      ];
+
+  List<BoxShadow> get elevatedShadows => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.08),
+          blurRadius: 28,
+          offset: const Offset(0, 10),
+          spreadRadius: -2,
+        ),
+        if (isDark)
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 18,
+            spreadRadius: -6,
+          ),
+      ];
 
   // ── Type scale ──
   TextStyle get title => GoogleFonts.inter(
@@ -93,38 +148,154 @@ class AppTokens {
   TextStyle get mono => GoogleFonts.firaCode(fontSize: 12.5, color: text);
 }
 
+// ── Glass Core Component ───────────────────────────────────────────────
+
+/// Spatial frosted glass container with blur, specular hairline rim,
+/// and ambient soft shadow.
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final double borderRadius;
+  final double blur;
+  final Color? color;
+  final Border? border;
+  final List<BoxShadow>? shadows;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final VoidCallback? onTap;
+
+  const GlassContainer({
+    super.key,
+    required this.child,
+    this.borderRadius = 20,
+    this.blur = 20,
+    this.color,
+    this.border,
+    this.shadows,
+    this.padding,
+    this.margin,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTokens.of(context);
+    final bg = color ?? t.glass;
+    final r = BorderRadius.circular(borderRadius);
+
+    Widget content = lg.AdaptiveGlass(
+      shape: lg.LiquidRoundedSuperellipse(borderRadius: borderRadius),
+      settings: lg.LiquidGlassSettings(
+        blur: blur,
+        glassColor: bg,
+        thickness: 24,
+        chromaticAberration: 0.012,
+        specularSharpness: lg.GlassSpecularSharpness.medium,
+        lightIntensity: t.isDark ? 0.45 : 0.65,
+      ),
+      child: Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          borderRadius: r,
+          border: border ??
+              Border.all(
+                color: t.glassBorder,
+                width: 0.65,
+              ),
+        ),
+        child: child,
+      ),
+    );
+
+    if (onTap != null) {
+      content = Material(
+        color: Colors.transparent,
+        borderRadius: r,
+        child: InkWell(
+          borderRadius: r,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: t.surfacePressed.withValues(alpha: 0.4),
+          onTap: () {
+            Haptics.selectionClick();
+            onTap!();
+          },
+          child: content,
+        ),
+      );
+    }
+
+    if (shadows != null && shadows!.isNotEmpty) {
+      content = DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: r,
+          boxShadow: shadows,
+        ),
+        child: content,
+      );
+    }
+
+    if (margin != null) {
+      content = Padding(padding: margin!, child: content);
+    }
+
+    return content;
+  }
+}
+
 // ── Page chrome ─────────────────────────────────────────────────────────
 
-/// Standard tab-screen app bar: left-aligned bold title, page background,
-/// no elevation. Hairline appears only once content scrolls under it.
+/// Translucent frosted glass app bar: scrolling content blurs beneath it.
 PreferredSizeWidget appScreenBar(
   BuildContext context, {
   required String title,
   List<Widget>? actions,
   Widget? leading,
   bool showBack = false,
+  Widget? titleWidget,
 }) {
   final t = AppTokens.of(context);
-  return AppBar(
-    backgroundColor: t.bg,
-    surfaceTintColor: Colors.transparent,
-    elevation: 0,
-    scrolledUnderElevation: 0,
-    automaticallyImplyLeading: showBack,
-    leading: leading,
-    iconTheme: IconThemeData(color: t.text),
-    titleSpacing: leading == null && !showBack ? 20 : 0,
-    title: Text(title,
-        style: GoogleFonts.inter(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-            color: t.text)),
-    actions: [...?actions, const SizedBox(width: 6)],
+  return PreferredSize(
+    preferredSize: const Size.fromHeight(kToolbarHeight),
+    child: ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: t.bg.withValues(alpha: t.isDark ? 0.68 : 0.82),
+            border: Border(
+              bottom: BorderSide(
+                color: t.glassBorder,
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            automaticallyImplyLeading: showBack,
+            leading: leading,
+            iconTheme: IconThemeData(color: t.text),
+            titleSpacing: leading == null && !showBack ? 20 : 0,
+            title: titleWidget ??
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.6,
+                    color: t.text,
+                  ),
+                ),
+            actions: [...?actions, const SizedBox(width: 8)],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
-/// Neutral icon button for app bars.
+/// Neutral icon button for app bars with subtle glass circle.
 class AppBarIcon extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -135,16 +306,24 @@ class AppBarIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 22, color: onPressed == null ? t.faint : t.text),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: t.fill,
+          shape: const CircleBorder(),
+          padding: const EdgeInsets.all(8),
+        ),
+        icon: Icon(icon, size: 20, color: onPressed == null ? t.faint : t.text),
+      ),
     );
   }
 }
 
-/// Standard horizontal page padding.
-const kPagePadding = EdgeInsets.fromLTRB(16, 4, 16, 32);
+/// Standard horizontal page padding with extra bottom padding for floating dock.
+const kPagePadding = EdgeInsets.fromLTRB(16, 8, 16, 96);
 
 // ── Sections & groups ───────────────────────────────────────────────────
 
@@ -156,7 +335,7 @@ class SectionHeader extends StatelessWidget {
   const SectionHeader(this.title,
       {super.key,
       this.trailing,
-      this.padding = const EdgeInsets.fromLTRB(4, 24, 4, 8)});
+      this.padding = const EdgeInsets.fromLTRB(6, 24, 6, 8)});
 
   @override
   Widget build(BuildContext context) {
@@ -179,83 +358,87 @@ class SectionFootnote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+      padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
       child: Text(text, style: AppTokens.of(context).small),
     );
   }
 }
 
-/// Rounded neutral surface. Use [AppGroup] for lists of rows.
+/// Rounded frosted glass card.
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final bool outlined;
+  final double borderRadius;
   const AppCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.onTap,
     this.outlined = false,
+    this.borderRadius = 20,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
-    return Material(
-      color: outlined ? Colors.transparent : t.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-            color: outlined ? t.outline : t.hairline,
-            width: outlined ? 1 : 0.5),
+    return GlassContainer(
+      borderRadius: borderRadius,
+      blur: 20,
+      color: outlined ? Colors.transparent : t.glass,
+      border: Border.all(
+        color: outlined ? t.outline : t.glassBorder,
+        width: outlined ? 1 : 0.65,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        splashFactory: NoSplash.splashFactory,
-        highlightColor: t.surfacePressed,
-        child: Padding(padding: padding, child: child),
-      ),
+      shadows: t.glassShadows,
+      padding: padding,
+      onTap: onTap,
+      child: child,
     );
   }
 }
 
-/// Grouped list surface with inset hairline dividers between children.
+/// Grouped list surface with inset hairline dividers rendered as a frosted glass pod.
 class AppGroup extends StatelessWidget {
   final List<Widget> children;
   final double dividerIndent;
   final bool flat;
-  const AppGroup(
-      {super.key,
-      required this.children,
-      this.dividerIndent = 16,
-      this.flat = false});
+  final double borderRadius;
+  const AppGroup({
+    super.key,
+    required this.children,
+    this.dividerIndent = 16,
+    this.flat = false,
+    this.borderRadius = 22,
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
     final items = children.where((w) => w is! SizedBox || w.height != 0);
     final list = items.toList();
-    return Container(
-      decoration: flat
-          ? null
-          : BoxDecoration(
-              color: t.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: t.hairline, width: 0.5),
-            ),
-      clipBehavior: flat ? Clip.none : Clip.antiAlias,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        for (var i = 0; i < list.length; i++) ...[
-          if (i > 0)
-            Padding(
-              padding: EdgeInsets.only(left: dividerIndent),
-              child: Container(height: 0.5, color: t.hairline),
-            ),
-          list[i],
-        ],
-      ]),
+
+    Widget body = Column(mainAxisSize: MainAxisSize.min, children: [
+      for (var i = 0; i < list.length; i++) ...[
+        if (i > 0)
+          Padding(
+            padding: EdgeInsets.only(left: dividerIndent),
+            child: Container(height: 0.5, color: t.hairline),
+          ),
+        list[i],
+      ],
+    ]);
+
+    if (flat) return body;
+
+    return GlassContainer(
+      borderRadius: borderRadius,
+      blur: 20,
+      color: t.glass,
+      border: Border.all(color: t.glassBorder, width: 0.65),
+      shadows: t.glassShadows,
+      child: body,
     );
   }
 }
@@ -301,11 +484,11 @@ class AppRow extends StatelessWidget {
               onTap!();
             },
       splashFactory: NoSplash.splashFactory,
-      highlightColor: t.surfacePressed,
+      highlightColor: t.surfacePressed.withValues(alpha: 0.4),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
             if (lead != null) ...[lead, const SizedBox(width: 12)],
             Expanded(
@@ -338,12 +521,12 @@ class AppRow extends StatelessWidget {
   }
 }
 
-/// Neutral circular icon holder.
+/// Neutral circular icon holder with frosted glass texture.
 class IconBadge extends StatelessWidget {
   final IconData icon;
   final double size;
   final Color? color;
-  const IconBadge(this.icon, {super.key, this.size = 32, this.color});
+  const IconBadge(this.icon, {super.key, this.size = 34, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -351,9 +534,16 @@ class IconBadge extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: t.fill),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: t.fill,
+        border: Border.all(
+          color: t.glassBorder.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
       child: Icon(icon,
-          size: size * 0.53, color: color ?? t.text.withValues(alpha: 0.8)),
+          size: size * 0.52, color: color ?? t.text.withValues(alpha: 0.85)),
     );
   }
 }
@@ -363,16 +553,30 @@ class IconBadge extends StatelessWidget {
 class StatusDot extends StatelessWidget {
   final Color color;
   final double size;
-  const StatusDot(this.color, {super.key, this.size = 6});
+  final bool glow;
+  const StatusDot(this.color, {super.key, this.size = 6, this.glow = true});
 
   @override
   Widget build(BuildContext context) => Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle));
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: glow
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.6),
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+      );
 }
 
-/// Compact label badge. Neutral by default; pass [color] to tint.
+/// Compact label badge with subtle glass styling.
 class AppTag extends StatelessWidget {
   final String label;
   final Color? color;
@@ -384,15 +588,21 @@ class AppTag extends StatelessWidget {
     final t = AppTokens.of(context);
     final fg = color ?? t.muted;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
-        color: color == null ? t.fill : color!.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        color: color == null ? t.fill : color!.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color == null
+              ? t.glassBorder
+              : color!.withValues(alpha: 0.25),
+          width: 0.5,
+        ),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (icon != null) ...[
           Icon(icon, size: 11, color: fg),
-          const SizedBox(width: 3),
+          const SizedBox(width: 3.5),
         ],
         Text(label,
             style: GoogleFonts.inter(
@@ -402,12 +612,12 @@ class AppTag extends StatelessWidget {
   }
 }
 
-/// Thin rounded progress bar.
+/// Thin rounded progress bar with luminous gradient.
 class AppProgressBar extends StatelessWidget {
   final double? value;
   final Color? color;
   final double height;
-  const AppProgressBar({super.key, this.value, this.color, this.height = 4});
+  const AppProgressBar({super.key, this.value, this.color, this.height = 4.5});
 
   @override
   Widget build(BuildContext context) {
@@ -424,7 +634,7 @@ class AppProgressBar extends StatelessWidget {
   }
 }
 
-/// Horizontal filter chips. Selected = solid text-colour fill; others are outlined.
+/// Horizontal filter chips. Selected = solid text-colour fill; others are outlined glass.
 class AppChips<T> extends StatelessWidget {
   final List<(T, String)> items;
   final T selected;
@@ -445,9 +655,10 @@ class AppChips<T> extends StatelessWidget {
           Builder(builder: (_) {
             final on = value == selected;
             return Material(
-              color: on ? t.text : Colors.transparent,
+              color: on ? t.text : t.fill,
               shape: StadiumBorder(
-                  side: BorderSide(color: on ? t.text : t.outline)),
+                  side: BorderSide(
+                      color: on ? t.text : t.glassBorder, width: 0.6)),
               child: InkWell(
                 customBorder: const StadiumBorder(),
                 splashFactory: NoSplash.splashFactory,
@@ -461,8 +672,8 @@ class AppChips<T> extends StatelessWidget {
                   child: Text(label,
                       style: GoogleFonts.inter(
                           fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          color: on ? t.bg : t.text.withValues(alpha: 0.85))),
+                          fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                          color: on ? t.bg : t.text.withValues(alpha: 0.88))),
                 ),
               ),
             );
@@ -474,7 +685,7 @@ class AppChips<T> extends StatelessWidget {
   }
 }
 
-/// iOS-style segmented control with a sliding thumb.
+/// Apple Glass segmented control with liquid refraction and jelly physics (iOS 26).
 class AppSegmented<T> extends StatelessWidget {
   final List<(T, String)> items;
   final T selected;
@@ -490,65 +701,96 @@ class AppSegmented<T> extends StatelessWidget {
     final t = AppTokens.of(context);
     final index =
         items.indexWhere((e) => e.$1 == selected).clamp(0, items.length - 1);
-    return Container(
+
+    return lg.GlassSegmentedControl(
+      segments: [
+        for (final item in items)
+          lg.GlassSegment(label: item.$2),
+      ],
+      selectedIndex: index,
+      onSegmentSelected: (i) {
+        if (i >= 0 && i < items.length) {
+          Haptics.selectionClick();
+          onChanged(items[i].$1);
+        }
+      },
       height: 40,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: t.fill,
-        borderRadius: BorderRadius.circular(12),
+      borderRadius: 14,
+      useOwnLayer: true,
+      selectedTextStyle: GoogleFonts.inter(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w600,
+        color: t.text,
       ),
-      child: LayoutBuilder(builder: (context, box) {
-        final w = box.maxWidth / items.length;
-        return Stack(children: [
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            left: w * index,
-            top: 0,
-            bottom: 0,
-            width: w,
-            child: Container(
-              decoration: BoxDecoration(
-                color: t.isDark ? const Color(0xFF2C2C2F) : Colors.white,
-                borderRadius: BorderRadius.circular(9),
-                boxShadow: t.isDark
-                    ? null
-                    : [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 6,
-                            offset: const Offset(0, 1)),
-                      ],
-              ),
-            ),
-          ),
-          Row(children: [
-            for (var i = 0; i < items.length; i++)
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    if (i != index) Haptics.selectionClick();
-                    onChanged(items[i].$1);
-                  },
-                  child: Center(
-                    child: Text(items[i].$2,
-                        style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight:
-                                i == index ? FontWeight.w600 : FontWeight.w500,
-                            color: i == index ? t.text : t.muted)),
-                  ),
-                ),
-              ),
-          ]),
-        ]);
-      }),
+      unselectedTextStyle: GoogleFonts.inter(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w500,
+        color: t.muted,
+      ),
     );
   }
 }
 
-/// Primary filled button (accent). Full-width by default.
+/// Apple Glass toggle switch with liquid refraction and spring jump animation (iOS 26).
+class AppSwitch extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final Color? activeColor;
+
+  const AppSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.activeColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTokens.of(context);
+    return lg.GlassSwitch(
+      value: value,
+      onChanged: onChanged,
+      activeColor: activeColor ?? t.green,
+      useOwnLayer: true,
+    );
+  }
+}
+
+/// Apple Glass slider with liquid track and jelly physics thumb (iOS 26).
+class AppSlider extends StatelessWidget {
+  final double value;
+  final ValueChanged<double> onChanged;
+  final double min;
+  final double max;
+  final int? divisions;
+  final Color? activeColor;
+
+  const AppSlider({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.min = 0.0,
+    this.max = 1.0,
+    this.divisions,
+    this.activeColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppTokens.of(context);
+    return lg.GlassSlider(
+      value: value,
+      onChanged: onChanged,
+      min: min,
+      max: max,
+      divisions: divisions,
+      activeColor: activeColor ?? t.accent,
+      useOwnLayer: true,
+    );
+  }
+}
+
+/// Primary spatial filled button with luminous Apple accent gradient.
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -572,6 +814,8 @@ class PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
     final enabled = _action != null && !busy;
+    final r = BorderRadius.circular(16);
+
     final child = Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -589,29 +833,63 @@ class PrimaryButton extends StatelessWidget {
             style: GoogleFonts.inter(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
                 color: Colors.white)),
       ],
     );
-    final button = Material(
-      color: enabled ? t.accent : t.accent.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: enabled ? _action : null,
-        child: SizedBox(
-          height: 48,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Center(child: child),
+
+    final button = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: r,
+        gradient: enabled
+            ? LinearGradient(
+                colors: [
+                  t.accentLight,
+                  t.accent,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              )
+            : null,
+        color: enabled ? null : t.accent.withValues(alpha: 0.35),
+        boxShadow: enabled
+            ? [
+                BoxShadow(
+                  color: t.accent.withValues(alpha: 0.32),
+                  blurRadius: 16,
+                  offset: const Offset(0, 5),
+                  spreadRadius: -2,
+                ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: r,
+        child: InkWell(
+          borderRadius: r,
+          onTap: enabled
+              ? () {
+                  Haptics.lightImpact();
+                  _action!();
+                }
+              : null,
+          child: SizedBox(
+            height: 50,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Center(child: child),
+            ),
           ),
         ),
       ),
     );
+
     return expand ? SizedBox(width: double.infinity, child: button) : button;
   }
 }
 
-/// Small pill action (e.g. "Load", "Browse") used inside rows and cards.
+/// Small pill action (e.g. "Load", "Browse") styled with glass capsule.
 class PillButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -646,25 +924,55 @@ class PillButton extends StatelessWidget {
       bg = t.fill;
       fg = t.text;
     }
+
     return Opacity(
       opacity: _action == null ? 0.45 : 1,
-      child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
+      child: Container(
+        decoration: BoxDecoration(
+          color: bg,
           borderRadius: BorderRadius.circular(999),
-          onTap: _action,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(icon != null ? 10 : 14, 7, 14, 7),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (icon != null) ...[
-                Icon(icon, size: 15, color: fg),
-                const SizedBox(width: 5),
-              ],
-              Text(label,
-                  style: GoogleFonts.inter(
-                      fontSize: 13, fontWeight: FontWeight.w600, color: fg)),
-            ]),
+          border: Border.all(
+            color: primary
+                ? Colors.transparent
+                : t.glassBorder.withValues(alpha: 0.5),
+            width: 0.6,
+          ),
+          boxShadow: primary
+              ? [
+                  BoxShadow(
+                    color: t.accent.withValues(alpha: 0.30),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: _action == null
+                ? null
+                : () {
+                    Haptics.selectionClick();
+                    _action!();
+                  },
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(icon != null ? 10 : 14, 7, 14, 7),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 15, color: fg),
+                  const SizedBox(width: 5),
+                ],
+                Text(label,
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
+                        color: fg)),
+              ]),
+            ),
           ),
         ),
       ),
@@ -672,7 +980,7 @@ class PillButton extends StatelessWidget {
   }
 }
 
-/// Centered empty / zero state.
+/// Centered empty / zero state with spatial glass icon holder.
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -691,20 +999,20 @@ class EmptyState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
       child: Column(children: [
-        IconBadge(icon, size: 52),
-        const SizedBox(height: 14),
+        IconBadge(icon, size: 56),
+        const SizedBox(height: 16),
         Text(title, textAlign: TextAlign.center, style: t.bodyStrong),
         if (message != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(message!, textAlign: TextAlign.center, style: t.caption),
         ],
-        if (action != null) ...[const SizedBox(height: 18), action!],
+        if (action != null) ...[const SizedBox(height: 20), action!],
       ]),
     );
   }
 }
 
-/// Inline notice (info / warning / error) — tinted, no heavy borders.
+/// Inline notice with soft glass tinting.
 class AppNotice extends StatelessWidget {
   final String text;
   final IconData icon;
@@ -717,14 +1025,18 @@ class AppNotice extends StatelessWidget {
     final t = AppTokens.of(context);
     final c = color ?? t.muted;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
       decoration: BoxDecoration(
-        color: color == null ? t.fill : c.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
+        color: color == null ? t.fill : c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color == null ? t.glassBorder : c.withValues(alpha: 0.22),
+          width: 0.6,
+        ),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, size: 16, color: c),
-        const SizedBox(width: 8),
+        const SizedBox(width: 9),
         Expanded(
             child: Text(text,
                 style: t.caption.copyWith(
@@ -737,12 +1049,12 @@ class AppNotice extends StatelessWidget {
 
 // ── Inputs ──────────────────────────────────────────────────────────────
 
-/// Filled text-field decoration matching the composer.
+/// Filled text-field decoration matching the glass aesthetic.
 InputDecoration appInputDecoration(BuildContext context,
     {String? hint, String? label, Widget? suffix, Widget? prefix}) {
   final t = AppTokens.of(context);
   OutlineInputBorder b(Color c, [double w = 0]) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       borderSide: w == 0 ? BorderSide.none : BorderSide(color: c, width: w));
   return InputDecoration(
     hintText: hint,
@@ -750,13 +1062,15 @@ InputDecoration appInputDecoration(BuildContext context,
     suffixIcon: suffix,
     prefixIcon: prefix,
     filled: true,
-    fillColor: t.isDark ? const Color(0xFF1C1C1F) : const Color(0xFFF0F0F2),
+    fillColor: t.isDark
+        ? Colors.white.withValues(alpha: 0.07)
+        : const Color(0xFFEBEBED),
     hintStyle: GoogleFonts.inter(fontSize: 15, color: t.faint),
     labelStyle: GoogleFonts.inter(fontSize: 14, color: t.muted),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     isDense: true,
     border: b(Colors.transparent),
-    enabledBorder: b(Colors.transparent),
+    enabledBorder: b(t.glassBorder.withValues(alpha: 0.4), 0.5),
     focusedBorder: b(t.accent, 1.2),
     errorBorder: b(t.red, 1),
     focusedErrorBorder: b(t.red, 1.2),
@@ -776,13 +1090,13 @@ class AppField extends StatelessWidget {
     final t = AppTokens.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
-        padding: const EdgeInsets.only(left: 2, bottom: 6),
+        padding: const EdgeInsets.only(left: 4, bottom: 6),
         child: Text(label, style: t.label),
       ),
       child,
       if (helper != null)
         Padding(
-          padding: const EdgeInsets.only(left: 2, top: 6),
+          padding: const EdgeInsets.only(left: 4, top: 6),
           child: Text(helper!, style: t.small),
         ),
     ]);
@@ -791,8 +1105,7 @@ class AppField extends StatelessWidget {
 
 // ── Sheets & dialogs ────────────────────────────────────────────────────
 
-/// Bottom sheet with the app's look: rounded top, grab handle, optional
-/// title/subtitle, keyboard-aware, scrolls when tall.
+/// Apple Glass bottom sheet with frosted backdrop blur and crystalline handle.
 Future<T?> showAppSheet<T>(
   BuildContext context, {
   String? title,
@@ -805,10 +1118,8 @@ Future<T?> showAppSheet<T>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: t.isDark ? const Color(0xFF1C1C1E) : Colors.white,
-    barrierColor: Colors.black.withValues(alpha: t.isDark ? 0.6 : 0.32),
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: t.isDark ? 0.65 : 0.35),
     builder: (ctx) {
       final tt = AppTokens.of(ctx);
       final content = Column(
@@ -831,30 +1142,50 @@ Future<T?> showAppSheet<T>(
           builder(ctx),
         ],
       );
+
       return Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: SafeArea(
-          top: false,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 14),
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: tt.outline, borderRadius: BorderRadius.circular(2)),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            child: Container(
+              decoration: BoxDecoration(
+                color: tt.isDark
+                    ? const Color(0xE8141720)
+                    : Colors.white.withValues(alpha: 0.88),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
+                border: Border(
+                  top: BorderSide(color: tt.glassSpecular, width: 0.8),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10, bottom: 14),
+                    child: Container(
+                      width: 40,
+                      height: 4.5,
+                      decoration: BoxDecoration(
+                          color: tt.outline,
+                          borderRadius: BorderRadius.circular(2.5)),
+                    ),
+                  ),
+                  Flexible(
+                    child: scrollable
+                        ? SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                            child: content)
+                        : Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                            child: content),
+                  ),
+                ]),
               ),
             ),
-            Flexible(
-              child: scrollable
-                  ? SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                      child: content)
-                  : Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                      child: content),
-            ),
-          ]),
+          ),
         ),
       );
     },
@@ -893,7 +1224,7 @@ Future<bool> confirmSheet(
 
 enum ToastTone { info, success, warning, error }
 
-/// App-wide toast (shows a dark floating pill at the bottom with icon).
+/// App-wide floating glass toast.
 void showToast(
   BuildContext context,
   String title,
@@ -912,40 +1243,64 @@ void showToast(
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       duration: duration,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
-      content: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      margin: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+      padding: EdgeInsets.zero,
+      content: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+              color: const Color(0xE0181A22),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.18),
+                width: 0.65,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white)),
-                if (message.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(message,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                          fontSize: 13,
-                          height: 1.35,
-                          color: const Color(0xFFC7C7CC))),
-                ],
+                Icon(icon, color: color, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white)),
+                      if (message.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(message,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                                fontSize: 13,
+                                height: 1.35,
+                                color: const Color(0xFFC7C7CC))),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     ),
   );

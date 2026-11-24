@@ -21,7 +21,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_local_notifications: 4cde75091f6327eb8517fa068a0a5950212d2086
-  llama_flutter_android: 2b25b34c24887d91f4bf35a5aaf3cac4e539f970
+  llama_flutter_android: 992e2762c30d9a227a7a7f3f86ce94a88ab73465
 
 PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
 

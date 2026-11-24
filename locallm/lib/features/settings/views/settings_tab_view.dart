@@ -180,8 +180,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
               AppRow(
                 icon: Icons.vibration_rounded,
                 title: 'Haptic feedback',
-                trailing: Switch(
-                  activeThumbColor: t.green,
+                trailing: AppSwitch(
                   value: _hapticsEnabled,
                   onChanged: (val) {
                     Haptics.selectionClick();
@@ -415,8 +414,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                     ),
                   ],
                 ),
-                Slider(
-                  activeColor: t.accent,
+                AppSlider(
                   value: _fontScale,
                   min: 0.8,
                   max: 1.3,
@@ -545,8 +543,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                         Text(_temperature.toStringAsFixed(2), style: t.bodyStrong),
                       ],
                     ),
-                    Slider(
-                      activeColor: t.accent,
+                    AppSlider(
                       value: _temperature,
                       min: 0.0,
                       max: 1.5,
@@ -577,8 +574,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                         Text('$_maxTokens', style: t.bodyStrong),
                       ],
                     ),
-                    Slider(
-                      activeColor: t.accent,
+                    AppSlider(
                       value: _maxTokens.toDouble(),
                       min: 64,
                       max: 2048,
@@ -609,8 +605,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                         Text('$_contextSize', style: t.bodyStrong),
                       ],
                     ),
-                    Slider(
-                      activeColor: t.accent,
+                    AppSlider(
                       value: _contextSize.toDouble(),
                       min: 512,
                       max: 4096,
@@ -752,8 +747,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                     Text('${_imageSteps.toInt()}', style: t.bodyStrong),
                   ],
                 ),
-                Slider(
-                  activeColor: t.accent,
+                AppSlider(
                   value: _imageSteps,
                   min: 1,
                   max: 50,
@@ -826,8 +820,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                     Text('${_gpuSafetyMb.toInt()} MB', style: t.bodyStrong),
                   ],
                 ),
-                Slider(
-                  activeColor: t.accent,
+                AppSlider(
                   value: _gpuSafetyMb,
                   min: 512,
                   max: 4096,
@@ -938,8 +931,6 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
 
   // ── 9. APP UPDATES ──
   Widget _buildUpdatesGroup(BuildContext context) {
-    final t = AppTokens.of(context);
-
     return StatefulBuilder(
       builder: (context, setSubState) => AppGroup(
         dividerIndent: 60,
@@ -957,8 +948,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
             icon: Icons.schedule_rounded,
             title: 'Check automatically',
             subtitle: 'Look for a new release once a day',
-            trailing: Switch(
-              activeThumbColor: t.green,
+            trailing: AppSwitch(
               value: _autoCheckUpdates,
               onChanged: (val) {
                 setSubState(() => _autoCheckUpdates = val);

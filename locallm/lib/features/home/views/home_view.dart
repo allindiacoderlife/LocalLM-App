@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../../core/haptics.dart';
 import '../../chat/views/chat_view.dart';
@@ -60,87 +60,90 @@ class HomeView extends ConsumerWidget {
     final currentTab = ref.watch(homeTabProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.white,
-      body: IndexedStack(
-        index: currentTab,
-        children: _views,
+      backgroundColor: isDark ? const Color(0xFF07080A) : const Color(0xFFF3F5F8),
+      extendBody: true,
+      body: Stack(
+        children: [
+          // Ambient Spatial Glass Canvas (Soft chromatic light pools)
+          Positioned(
+            top: -120,
+            left: -80,
+            child: IgnorePointer(
+              child: Container(
+                width: 320,
+                height: 320,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      (isDark ? const Color(0xFF0A84FF) : const Color(0xFF4FACFE))
+                          .withValues(alpha: isDark ? 0.14 : 0.18),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 60,
+            right: -90,
+            child: IgnorePointer(
+              child: Container(
+                width: 340,
+                height: 340,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      (isDark ? const Color(0xFF5E5CE6) : const Color(0xFFB388FF))
+                          .withValues(alpha: isDark ? 0.10 : 0.14),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Views
+          IndexedStack(
+            index: currentTab,
+            children: _views,
+          ),
+        ],
       ),
-      bottomNavigationBar: _buildBottomNav(context, ref, currentTab, isDark),
+      bottomNavigationBar: _buildGlassDock(context, ref, currentTab, isDark),
     );
   }
 
-  Widget _buildBottomNav(
+  /// Floating Apple Glass Dock with liquid refraction and jelly physics (iOS 26)
+  Widget _buildGlassDock(
       BuildContext context, WidgetRef ref, int current, bool isDark) {
-    final accent = isDark ? const Color(0xFF0A84FF) : const Color(0xFF007AFF);
-    final muted = isDark ? const Color(0xFF7C7C80) : const Color(0xFF8E8E93);
+    final accent = isDark ? const Color(0xFF0A84FF) : const Color(0xFF0071E3);
+    final muted = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Colors.black : Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.08)
-                : Colors.black.withValues(alpha: 0.08),
-            width: 0.5,
+    return GlassTabBar.bottom(
+      tabs: [
+        for (final item in _tabs)
+          GlassTab(
+            icon: Icon(item.icon),
+            activeIcon: Icon(item.activeIcon),
+            label: item.label,
+            glowColor: accent,
           ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 54,
-          child: Row(
-            children: [
-              for (var i = 0; i < _tabs.length; i++)
-                Expanded(
-                  child: Semantics(
-                    selected: current == i,
-                    button: true,
-                    label: _tabs[i].label,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        if (current != i) {
-                          Haptics.selectionClick();
-                          ref.read(homeTabProvider.notifier).state = i;
-                        }
-                      },
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 160),
-                            child: Icon(
-                              current == i
-                                  ? _tabs[i].activeIcon
-                                  : _tabs[i].icon,
-                              key: ValueKey(current == i),
-                              size: 23,
-                              color: current == i ? accent : muted,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            _tabs[i].label,
-                            style: GoogleFonts.inter(
-                              fontSize: 10.5,
-                              letterSpacing: 0.1,
-                              fontWeight: current == i
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              color: current == i ? accent : muted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
+      ],
+      selectedIndex: current,
+      onTabSelected: (i) {
+        Haptics.selectionClick();
+        ref.read(homeTabProvider.notifier).state = i;
+      },
+      selectedIconColor: accent,
+      selectedLabelColor: accent,
+      unselectedIconColor: muted,
+      unselectedLabelColor: muted,
+      barHeight: 64,
+      horizontalPadding: 16,
+      verticalPadding: 10,
     );
   }
 }

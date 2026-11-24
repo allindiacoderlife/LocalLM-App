@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import 'core/constants.dart';
 import 'core/theme.dart';
@@ -10,14 +11,20 @@ import 'features/home/views/home_view.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Apple Liquid Glass engine & pre-warm shaders
+  await LiquidGlassWidgets.initialize();
+
   // Initialize Hive local persistence
   await Hive.initFlutter();
   await Hive.openBox(AppConstants.settingsBox);
   await Hive.openBox(AppConstants.chatSessionsBox);
 
   runApp(
-    const ProviderScope(
-      child: LocalLMApp(),
+    LiquidGlassWidgets.wrap(
+      brightnessResolver: Theme.maybeBrightnessOf,
+      child: const ProviderScope(
+        child: LocalLMApp(),
+      ),
     ),
   );
 }

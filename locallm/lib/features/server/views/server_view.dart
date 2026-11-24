@@ -146,8 +146,7 @@ class _ServerViewState extends ConsumerState<ServerView> {
                 subtitle: allowNetwork
                     ? 'Reachable from other devices on your network'
                     : 'Only apps on this device can connect',
-                trailing: Switch(
-                  activeThumbColor: t.green,
+                trailing: AppSwitch(
                   value: allowNetwork,
                   onChanged: isStarting
                       ? null
@@ -163,8 +162,7 @@ class _ServerViewState extends ConsumerState<ServerView> {
                 subtitle: allowNetwork
                     ? 'Always on while network access is enabled'
                     : 'Clients send Authorization: Bearer <key>',
-                trailing: Switch(
-                  activeThumbColor: t.green,
+                trailing: AppSwitch(
                   value: serverState.requiresApiKey,
                   onChanged: allowNetwork
                       ? null

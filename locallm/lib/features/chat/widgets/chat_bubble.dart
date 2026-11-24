@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/ui.dart';
 import '../models/chat_message.dart';
 import '../../../core/utils/thought_parser.dart';
 import 'thought_disclosure.dart';
@@ -28,6 +29,7 @@ class ChatBubble extends StatelessWidget {
 
   // ── User: Compact pill on the right (Apple / PrivateLM style) ──
   Widget _buildUser(BuildContext context) {
+    final t = AppTokens.of(context);
     final maxW = MediaQuery.of(context).size.width * 0.82;
 
     return Padding(
@@ -41,17 +43,17 @@ class ChatBubble extends StatelessWidget {
               constraints: BoxConstraints(maxWidth: maxW),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
-                color: const Color(0xFF20242D),
+                color: t.fill,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: t.glassBorder,
                   width: 0.5,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.description_outlined, size: 16, color: Color(0xFF8B84FF)),
+                  Icon(Icons.description_outlined, size: 16, color: t.accent),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
@@ -61,7 +63,7 @@ class ChatBubble extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white70,
+                        color: t.muted,
                       ),
                     ),
                   ),
@@ -74,7 +76,9 @@ class ChatBubble extends StatelessWidget {
               constraints: BoxConstraints(maxWidth: maxW),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF232733),
+                color: t.isDark
+                    ? const Color(0xFF1F2430)
+                    : const Color(0xFFE3E8F0),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -82,9 +86,16 @@ class ChatBubble extends StatelessWidget {
                   bottomRight: Radius.circular(5),
                 ),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.09),
+                  color: t.glassBorder,
                   width: 0.5,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: t.isDark ? 0.2 : 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: SelectableText(
                 message.content,
@@ -92,7 +103,7 @@ class ChatBubble extends StatelessWidget {
                   fontSize: 15,
                   height: 1.45,
                   letterSpacing: -0.1,
-                  color: Colors.white,
+                  color: t.text,
                 ),
               ),
             ),

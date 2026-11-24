@@ -18,28 +18,52 @@ class DownloadNotificationService {
   Future<void> init() async {
     if (_initialized) return;
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
+    try {
+      const androidSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const darwinSettings = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: darwinSettings,
+        macOS: darwinSettings,
+      );
 
-    await _notifications.initialize(initSettings);
+      await _notifications.initialize(initSettings);
 
-    const androidChannel = AndroidNotificationChannel(
-      _channelId,
-      _channelName,
-      description: _channelDesc,
-      importance: Importance.low, // Silent updates for progress bars
-      enableVibration: false,
-      playSound: false,
-    );
+      final androidPlugin = _notifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        const androidChannel = AndroidNotificationChannel(
+          _channelId,
+          _channelName,
+          description: _channelDesc,
+          importance: Importance.low, // Silent updates for progress bars
+          enableVibration: false,
+          playSound: false,
+        );
+        await androidPlugin.createNotificationChannel(androidChannel);
+        await androidPlugin.requestNotificationsPermission();
+      }
 
-    final androidPlugin = _notifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(androidChannel);
-    await androidPlugin?.requestNotificationsPermission();
+      final iosPlugin = _notifications
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      await iosPlugin?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-    _initialized = true;
+      _initialized = true;
+    } catch (e) {
+      // Prevent notification initialization failure on simulators from halting the app
+      _initialized = true;
+    }
   }
 
   Future<void> showProgress({
@@ -51,67 +75,93 @@ class DownloadNotificationService {
     required int downloadedMb,
     required int totalMb,
   }) async {
-    await init();
+    try {
+      await init();
 
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDesc,
-      importance: Importance.low,
-      priority: Priority.low,
-      showProgress: true,
-      maxProgress: 100,
-      progress: progressPercent,
-      ongoing: true,
-      onlyAlertOnce: true,
-      autoCancel: false,
-      actions: [
-        const AndroidNotificationAction('cancel_download', 'Cancel'),
-        const AndroidNotificationAction('pause_download', 'Pause'),
-      ],
-    );
+      final androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDesc,
+        importance: Importance.low,
+        priority: Priority.low,
+        showProgress: true,
+        maxProgress: 100,
+        progress: progressPercent,
+        ongoing: true,
+        onlyAlertOnce: true,
+        autoCancel: false,
+        actions: [
+          const AndroidNotificationAction('cancel_download', 'Cancel'),
+          const AndroidNotificationAction('pause_download', 'Pause'),
+        ],
+      );
 
-    final details = NotificationDetails(android: androidDetails);
+      const darwinDetails = DarwinNotificationDetails(
+        presentAlert: false,
+        presentBadge: false,
+        presentSound: false,
+      );
 
-    final body = eta.isNotEmpty
-        ? '$eta left, $speed'
-        : speed;
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: darwinDetails,
+        macOS: darwinDetails,
+      );
 
-    await _notifications.show(
-      id,
-      modelName,
-      body,
-      details,
-    );
+      final body = eta.isNotEmpty
+          ? '$eta left, $speed'
+          : speed;
+
+      await _notifications.show(
+        id,
+        modelName,
+        body,
+        details,
+      );
+    } catch (_) {}
   }
 
   Future<void> showComplete({
     required int id,
     required String modelName,
   }) async {
-    await init();
+    try {
+      await init();
 
-    const androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
-      ongoing: false,
-      autoCancel: true,
-    );
+      const androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+        ongoing: false,
+        autoCancel: true,
+      );
 
-    const details = NotificationDetails(android: androidDetails);
+      const darwinDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
 
-    await _notifications.show(
-      id,
-      'Download complete',
-      '$modelName is ready for local offline inference',
-      details,
-    );
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: darwinDetails,
+        macOS: darwinDetails,
+      );
+
+      await _notifications.show(
+        id,
+        'Download complete',
+        '$modelName is ready for local offline inference',
+        details,
+      );
+    } catch (_) {}
   }
 
   Future<void> cancel(int id) async {
-    await _notifications.cancel(id);
+    try {
+      await _notifications.cancel(id);
+    } catch (_) {}
   }
 }
