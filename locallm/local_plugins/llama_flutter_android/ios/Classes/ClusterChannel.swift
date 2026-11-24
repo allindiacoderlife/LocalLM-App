@@ -129,8 +129,12 @@ final class ClusterChannel: NSObject, NetServiceDelegate {
     static func usableMemoryMb() -> Int {
         let appLimit = LlamaClusterWorker.availableMemoryMb()
         guard let gpu = MTLCreateSystemDefaultDevice() else { return appLimit }
-        let gpuMb = Int(gpu.recommendedMaxWorkingSetSize / (1024 * 1024))
-        return min(appLimit, gpuMb)
+        if #available(iOS 16.0, *) {
+            let gpuMb = Int(gpu.recommendedMaxWorkingSetSize / (1024 * 1024))
+            return min(appLimit, gpuMb)
+        } else {
+            return appLimit
+        }
     }
 
     /// This device's lasting worker ID, so a master can find it again when

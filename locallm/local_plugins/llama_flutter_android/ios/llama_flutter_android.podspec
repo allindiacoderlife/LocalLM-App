@@ -23,10 +23,12 @@ Pod::Spec.new do |s|
   s.libraries  = 'c++'
 
   s.pod_target_xcconfig = {
-    'GCC_PREPROCESSOR_DEFINITIONS'  => '$(inherited) NDEBUG=1',
-    'OTHER_CPLUSPLUSFLAGS'          => '$(inherited) -std=c++17 -O3 -DNDEBUG',
-    'CLANG_CXX_LANGUAGE_STANDARD'  => 'c++17',
-    'HEADER_SEARCH_PATHS'           => '"$(PODS_TARGET_SRCROOT)/llama_ios/include"',
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64 x86_64 i386',
+    'GCC_PREPROCESSOR_DEFINITIONS'               => '$(inherited) NDEBUG=1',
+    'OTHER_CPLUSPLUSFLAGS'                       => '$(inherited) -std=c++17 -O3 -DNDEBUG',
+    'CLANG_CXX_LANGUAGE_STANDARD'               => 'c++17',
+    'HEADER_SEARCH_PATHS'                        => '"$(PODS_TARGET_SRCROOT)/llama_ios/include"',
+    'LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]' => '"$(PODS_TARGET_SRCROOT)/llama_ios/lib/simulator"',
+    'LIBRARY_SEARCH_PATHS[sdk=iphoneos*]'        => '"$(PODS_TARGET_SRCROOT)/llama_ios/lib/device"',
+    'OTHER_LDFLAGS'                              => '$(inherited) -lllama_ios',
   }
 end
