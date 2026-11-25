@@ -40,6 +40,8 @@ dependencies:
   # Local GGUF Engine & Cluster RPC
   llama_flutter_android:
     path: local_plugins/llama_flutter_android
+  speech_to_text: ^7.5.0
+  markdown: ^7.3.1
 
 dev_dependencies:
   flutter_test:

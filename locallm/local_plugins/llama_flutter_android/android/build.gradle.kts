@@ -54,6 +54,7 @@ android {
 
     defaultConfig {
         minSdk = 28  // Android 9: matches the app; needed for Vulkan 1.1 symbols
+        consumerProguardFiles("consumer-rules.pro")
         
         ndk {
             // arm64: full build (CPU variants + Vulkan). armeabi-v7a: plain CPU

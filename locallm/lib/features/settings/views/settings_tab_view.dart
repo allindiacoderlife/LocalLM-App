@@ -26,8 +26,15 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
   final _systemPromptController = TextEditingController();
   final _stopSequencesController = TextEditingController(text: '###\n\\nUser:');
 
-  String _deviceRam = '2.7 GB RAM';
+  String _deviceRam = 'Detecting...';
+  String _availableRam = '...';
   String _chipset = 'Qualcomm Snapdragon';
+  String _ramTag = 'RAM';
+  String _ramSubtitle = 'Detecting memory...';
+  String _recommendedContext = '2048';
+  String _recommendedMaxTokens = '512';
+  String _recommendedQuant = 'Q4_K_M (recommended)';
+  int _nominalRam = 6;
   bool _hapticsEnabled = true;
   bool _autoCheckUpdates = true;
   String _performanceMode = 'auto_fast'; // 'auto_fast', 'gpu_fast', 'cpu_safe'
@@ -37,7 +44,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
   double _gpuSafetyMb = 1843.0;
 
   double _temperature = 0.30;
-  int _maxTokens = 256;
+  int _maxTokens = 1024;
   int _contextSize = 1024;
 
   int _themeModeIndex = 2; // 0=Light, 1=Dark, 2=System
@@ -76,7 +83,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
 
     _fontScale = (box.get('font_scale', defaultValue: 1.0) as num).toDouble();
     _temperature = (box.get('temperature', defaultValue: 0.30) as num).toDouble();
-    _maxTokens = (box.get('max_tokens', defaultValue: 256) as num).toInt();
+    _maxTokens = (box.get('max_tokens', defaultValue: 1024) as num).toInt();
     _contextSize = (box.get('context_size', defaultValue: 1024) as num).toInt();
     _stopSequencesController.text = box.get('stop_sequences', defaultValue: '###\n\\nUser:') as String;
     _performanceMode = box.get('performance_mode', defaultValue: 'auto_fast') as String;
@@ -90,14 +97,119 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
 
   Future<void> _detectDevice() async {
     try {
+      double totalRamGiB = 0.0;
+      double availRamGiB = 0.0;
+
+      if (Platform.isAndroid || Platform.isLinux) {
+        final memInfoFile = File('/proc/meminfo');
+        if (await memInfoFile.exists()) {
+          final content = await memInfoFile.readAsString();
+          final totalMatch = RegExp(r'MemTotal:\s+(\d+)').firstMatch(content);
+          if (totalMatch != null) {
+            final kb = int.tryParse(totalMatch.group(1)!) ?? 0;
+            totalRamGiB = kb / (1024 * 1024);
+          }
+          final availMatch = RegExp(r'MemAvailable:\s+(\d+)').firstMatch(content);
+          if (availMatch != null) {
+            final kb = int.tryParse(availMatch.group(1)!) ?? 0;
+            availRamGiB = kb / (1024 * 1024);
+          }
+        }
+      }
+
+      int nominalRam = 6;
+      if (totalRamGiB > 0) {
+        if (totalRamGiB <= 3.3) {
+          nominalRam = 3;
+        } else if (totalRamGiB <= 4.5) {
+          nominalRam = 4;
+        } else if (totalRamGiB <= 6.5) {
+          nominalRam = 6;
+        } else if (totalRamGiB <= 9.0) {
+          nominalRam = 8;
+        } else if (totalRamGiB <= 13.0) {
+          nominalRam = 12;
+        } else {
+          nominalRam = 16;
+        }
+      }
+
+      String chipset = 'Qualcomm Snapdragon';
+      String quant = 'Q4_K_M (recommended)';
+
       if (Platform.isAndroid) {
         final android = await DeviceInfoPlugin().androidInfo;
+        final board = android.board.toLowerCase();
+        final hardware = android.hardware.toLowerCase();
+
+        if (board == 'holi' || hardware.contains('sm6375')) {
+          chipset = 'Snapdragon 695 5G (SM6375)';
+        } else if (android.hardware.isNotEmpty) {
+          chipset = android.hardware;
+        }
+
+        if (hardware.contains('tensor') || board.contains('gs')) {
+          quant = 'Q4_0 or Q5_K_M · AVOID Q4_K_M';
+        }
+      }
+
+      String tag = 'Mid RAM';
+      String subtitle = 'Good for 1-3B models';
+      String recContext = '2048';
+      String recTokens = '512';
+
+      if (nominalRam <= 3) {
+        tag = 'Low RAM';
+        subtitle = 'Use small models only (0.5B-1B)';
+        recContext = '1024';
+        recTokens = '256';
+      } else if (nominalRam <= 4) {
+        tag = 'Entry RAM';
+        subtitle = 'Good for 1B-1.5B models';
+        recContext = '1536';
+        recTokens = '384';
+      } else if (nominalRam <= 6) {
+        tag = 'Mid RAM';
+        subtitle = 'Good for 1-3B models';
+        recContext = '2048';
+        recTokens = '512';
+      } else if (nominalRam <= 8) {
+        tag = 'High RAM';
+        subtitle = 'Good for 3B-7B models';
+        recContext = '4096';
+        recTokens = '1024';
+      } else {
+        tag = 'Ultra RAM';
+        subtitle = 'Ready for 8B+ large models';
+        recContext = '8192';
+        recTokens = '2048';
+      }
+
+      final ramLabel = totalRamGiB > 0 ? '$nominalRam GB RAM' : '6 GB RAM';
+      final availLabel = availRamGiB > 0 ? '${availRamGiB.toStringAsFixed(1)} GB' : '1.6 GB';
+
+      if (mounted) {
         setState(() {
-          _deviceRam = '2.7 GB RAM';
-          _chipset = android.hardware.isNotEmpty ? android.hardware : 'Qualcomm Snapdragon';
+          _nominalRam = nominalRam;
+          _deviceRam = ramLabel;
+          _availableRam = availLabel;
+          _chipset = chipset;
+          _ramTag = tag;
+          _ramSubtitle = subtitle;
+          _recommendedContext = recContext;
+          _recommendedMaxTokens = recTokens;
+          _recommendedQuant = quant;
+          _systemLogs.removeWhere((l) => l.$3.contains('[DeviceInfo]'));
+          _systemLogs.insert(2, (
+            'Info',
+            TimeOfDay.now().format(context),
+            '[DeviceInfo] RAM: ${totalRamGiB.toStringAsFixed(1)}GB total ($nominalRam GB physical), tier: ${tag.toLowerCase()}',
+          ));
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error detecting device info: $e');
+    }
   }
 
   @override
@@ -443,35 +555,39 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
 
   // ── 2. INFERENCE MODE ──
   Widget _buildInferenceGroup(BuildContext context) {
-    final t = AppTokens.of(context);
-    final chatState = ref.watch(chatProvider);
-    final localState = ref.watch(localInferenceProvider);
-    final isLocal = chatState.inferenceMode == InferenceMode.local;
+    return Consumer(
+      builder: (context, ref, _) {
+        final t = AppTokens.of(context);
+        final chatState = ref.watch(chatProvider);
+        final localState = ref.watch(localInferenceProvider);
+        final isLocal = chatState.inferenceMode == InferenceMode.local;
 
-    return AppGroup(
-      dividerIndent: 60,
-      children: [
-        AppRow(
-          icon: Icons.phone_android_rounded,
-          title: 'Local (on-device)',
-          subtitle: localState.isModelLoaded ? localState.loadedModelName! : 'No model loaded',
-          selected: isLocal,
-          trailing: isLocal ? Icon(Icons.check_rounded, color: t.accent, size: 20) : null,
-          onTap: () {
-            ref.read(chatProvider.notifier).setInferenceMode(InferenceMode.local);
-          },
-        ),
-        AppRow(
-          icon: Icons.cloud_outlined,
-          title: 'Cloud API',
-          subtitle: chatState.selectedProvider.name.toUpperCase(),
-          selected: !isLocal,
-          trailing: !isLocal ? Icon(Icons.check_rounded, color: t.accent, size: 20) : null,
-          onTap: () {
-            ref.read(chatProvider.notifier).setInferenceMode(InferenceMode.cloud);
-          },
-        ),
-      ],
+        return AppGroup(
+          dividerIndent: 60,
+          children: [
+            AppRow(
+              icon: Icons.phone_android_rounded,
+              title: 'Local (on-device)',
+              subtitle: localState.isModelLoaded ? localState.loadedModelName! : 'No model loaded',
+              selected: isLocal,
+              trailing: isLocal ? Icon(Icons.check_rounded, color: t.accent, size: 20) : null,
+              onTap: () {
+                ref.read(chatProvider.notifier).setInferenceMode(InferenceMode.local);
+              },
+            ),
+            AppRow(
+              icon: Icons.cloud_outlined,
+              title: 'Cloud API',
+              subtitle: chatState.selectedProvider.name.toUpperCase(),
+              selected: !isLocal,
+              trailing: !isLocal ? Icon(Icons.check_rounded, color: t.accent, size: 20) : null,
+              onTap: () {
+                ref.read(chatProvider.notifier).setInferenceMode(InferenceMode.cloud);
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -576,15 +692,15 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                     ),
                     AppSlider(
                       value: _maxTokens.toDouble(),
-                      min: 64,
-                      max: 2048,
+                      min: 128,
+                      max: 4096,
                       divisions: 31,
                       onChanged: (v) {
                         setSubState(() => _maxTokens = v.toInt());
                         setState(() => _maxTokens = v.toInt());
                       },
                     ),
-                    Text('Recommended max: 512', style: t.small),
+                    Text('Recommended: 1024–2048 (higher for code)', style: t.small),
                   ],
                 ),
               ),
@@ -908,22 +1024,22 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                   children: [
                     Text(_deviceRam, style: t.bodyStrong),
                     const SizedBox(height: 2),
-                    Text('Use small models only', style: t.caption),
+                    Text(_ramSubtitle, style: t.caption),
                   ],
                 ),
               ),
-              AppTag('Low RAM', color: t.orange),
+              AppTag(_ramTag, color: _nominalRam <= 3 ? t.orange : (_nominalRam <= 6 ? t.accent : t.green)),
             ],
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Container(height: 0.5, color: t.hairline),
           ),
-          kv('Available memory', '0.7 GB'),
-          kv('Recommended context', '1024'),
-          kv('Recommended max tokens', '256'),
+          kv('Available memory', _availableRam),
+          kv('Recommended context', _recommendedContext),
+          kv('Recommended max tokens', _recommendedMaxTokens),
           kv('Chipset', _chipset),
-          kv('Recommended quant', 'Q4_K_M (recommended) · Q4_0...'),
+          kv('Recommended quant', _recommendedQuant),
         ],
       ),
     );
@@ -1049,7 +1165,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                     const SizedBox(height: 6),
                     Text(
                       entry.$3,
-                      style: GoogleFonts.firaCode(fontSize: 12.5, color: t.text.withValues(alpha: 0.9)),
+                      style: TextStyle(fontFamily: 'monospace', fontSize: 12.5, color: t.text.withValues(alpha: 0.9)),
                     ),
                   ],
                 ),
@@ -1061,7 +1177,7 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
 }
 
 /// Standalone Full-Page settings sub-page with back arrow
-class _SettingsPage extends StatelessWidget {
+class _SettingsPage extends ConsumerWidget {
   final String title;
   final WidgetBuilder builder;
 
@@ -1071,7 +1187,11 @@ class _SettingsPage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(themeModeProvider);
+    ref.watch(fontScaleProvider);
+    ref.watch(chatProvider);
+    ref.watch(localInferenceProvider);
     final t = AppTokens.of(context);
 
     return Scaffold(

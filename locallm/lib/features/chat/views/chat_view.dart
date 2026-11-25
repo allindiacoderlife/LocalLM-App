@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../../core/ui.dart';
 import '../../documents/services/document_extractor_service.dart';
@@ -22,7 +23,11 @@ class ChatView extends ConsumerStatefulWidget {
 class _ChatViewState extends ConsumerState<ChatView> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final stt.SpeechToText _speech = stt.SpeechToText();
   bool _hasInputText = false;
+  bool _speechInitialized = false;
+  bool _isListening = false;
+  String _speechBaseText = '';
 
   @override
   void initState() {
@@ -37,9 +42,68 @@ class _ChatViewState extends ConsumerState<ChatView> {
 
   @override
   void dispose() {
+    _speech.stop();
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    if (!_speechInitialized) {
+      _speechInitialized = await _speech.initialize(
+        onStatus: (status) {
+          if (!mounted) return;
+          if (status == 'done' || status == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (err) {
+          if (!mounted) return;
+          setState(() => _isListening = false);
+          showToast(context, 'Voice input', err.errorMsg,
+              tone: ToastTone.warning);
+        },
+      );
+    }
+
+    if (!_speechInitialized) {
+      if (mounted) {
+        showToast(
+          context,
+          'Microphone unavailable',
+          'Please allow microphone permission to use voice input.',
+          tone: ToastTone.warning,
+        );
+      }
+      return;
+    }
+
+    _speechBaseText = _inputController.text.trim();
+    setState(() => _isListening = true);
+
+    await _speech.listen(
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: stt.ListenMode.dictation,
+        partialResults: true,
+      ),
+      onResult: (result) {
+        if (!mounted) return;
+        final spoken = result.recognizedWords.trim();
+        final combined = _speechBaseText.isEmpty
+            ? spoken
+            : (spoken.isEmpty ? _speechBaseText : '$_speechBaseText $spoken');
+        _inputController.value = TextEditingValue(
+          text: combined,
+          selection: TextSelection.collapsed(offset: combined.length),
+        );
+      },
+    );
   }
 
   void _scrollToBottom() {
@@ -73,6 +137,10 @@ class _ChatViewState extends ConsumerState<ChatView> {
   }
 
   void _handleSend([String? customPrompt]) {
+    if (_isListening) {
+      _speech.stop();
+      setState(() => _isListening = false);
+    }
     final text = (customPrompt ?? _inputController.text).trim();
     if (text.isEmpty && ref.read(chatProvider).attachment == null) return;
     if (customPrompt == null) {
@@ -114,18 +182,23 @@ class _ChatViewState extends ConsumerState<ChatView> {
                 selected: isLocal,
                 trailing: isLocal ? AppTag('Active', color: t.green) : null,
                 onTap: () {
-                  ref.read(chatProvider.notifier).setInferenceMode(InferenceMode.local);
+                  ref
+                      .read(chatProvider.notifier)
+                      .setInferenceMode(InferenceMode.local);
                   Navigator.pop(ctx);
                 },
               ),
               AppRow(
                 icon: Icons.cloud_outlined,
                 title: 'Cloud Model',
-                subtitle: '${chatState.selectedProvider.name.toUpperCase()} · ${chatState.selectedModel}',
+                subtitle:
+                    '${chatState.selectedProvider.name.toUpperCase()} · ${chatState.selectedModel}',
                 selected: !isLocal,
                 trailing: !isLocal ? AppTag('Active', color: t.accent) : null,
                 onTap: () {
-                  ref.read(chatProvider.notifier).setInferenceMode(InferenceMode.cloud);
+                  ref
+                      .read(chatProvider.notifier)
+                      .setInferenceMode(InferenceMode.cloud);
                   Navigator.pop(ctx);
                 },
               ),
@@ -175,14 +248,17 @@ class _ChatViewState extends ConsumerState<ChatView> {
     final t = AppTokens.of(context);
 
     ref.listen(chatProvider, (previous, next) {
-      if (previous?.currentSession?.messages.length != next.currentSession?.messages.length ||
+      if (previous?.currentSession?.messages.length !=
+              next.currentSession?.messages.length ||
           next.isGenerating) {
         _scrollToBottom();
       }
     });
 
     final modelDisplayName = isLocalMode
-        ? (localState.isModelLoaded ? localState.loadedModelName! : 'No Local Model')
+        ? (localState.isModelLoaded
+            ? localState.loadedModelName!
+            : 'No Local Model')
         : '${chatState.selectedProvider.name.toUpperCase()} · ${chatState.selectedModel}';
 
     return Scaffold(
@@ -239,7 +315,9 @@ class _ChatViewState extends ConsumerState<ChatView> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isLocalMode
-                                ? (localState.isModelLoaded ? t.green : t.orange)
+                                ? (localState.isModelLoaded
+                                    ? t.green
+                                    : t.orange)
                                 : t.accent,
                           ),
                         ),
@@ -249,10 +327,12 @@ class _ChatViewState extends ConsumerState<ChatView> {
                             modelDisplayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(fontSize: 12, color: t.muted),
+                            style:
+                                GoogleFonts.inter(fontSize: 12, color: t.muted),
                           ),
                         ),
-                        Icon(Icons.expand_more_rounded, size: 16, color: t.muted),
+                        Icon(Icons.expand_more_rounded,
+                            size: 16, color: t.muted),
                       ],
                     ),
                   ],
@@ -274,7 +354,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
         children: [
           Expanded(
             child: messages.isEmpty
-                ? _buildEmptyState(context, isLocalMode, localState, downloadState.downloadedFiles.length)
+                ? _buildEmptyState(context, isLocalMode, localState,
+                    downloadState.downloadedFiles.length)
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.only(top: 8, bottom: 8),
@@ -325,7 +406,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
                     'assets/icons/appicon.png',
                     width: 44,
                     height: 44,
-                    errorBuilder: (_, __, ___) => Icon(Icons.token_rounded, size: 44, color: t.accent),
+                    errorBuilder: (_, __, ___) =>
+                        Icon(Icons.token_rounded, size: 44, color: t.accent),
                   ),
                   const SizedBox(height: 18),
                   Text(
@@ -449,7 +531,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: dotColor),
                     ),
                     const SizedBox(width: 6),
                     Flexible(
@@ -457,7 +540,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(fontSize: 12.5, color: t.muted),
+                        style:
+                            GoogleFonts.inter(fontSize: 12.5, color: t.muted),
                       ),
                     ),
                   ],
@@ -541,12 +625,25 @@ class _ChatViewState extends ConsumerState<ChatView> {
     );
   }
 
-  Widget _buildStarters(AppTokens t, bool isLocal, LocalInferenceState localState) {
+  Widget _buildStarters(
+      AppTokens t, bool isLocal, LocalInferenceState localState) {
     final ready = !isLocal || localState.isModelLoaded;
     final starters = [
-      (Icons.lightbulb_outline_rounded, 'Explain quantum computing simply', 'Explain quantum computing simply, like I\'m new to it.'),
-      (Icons.mail_outline_rounded, 'Write a polite follow-up email', 'Write a short, polite follow-up email to someone who hasn\'t replied in a week.'),
-      (Icons.flight_takeoff_rounded, 'Plan a 3-day trip to Tokyo', 'Plan a relaxed 3-day trip to Tokyo with food and sightseeing.'),
+      (
+        Icons.lightbulb_outline_rounded,
+        'Explain quantum computing simply',
+        'Explain quantum computing simply, like I\'m new to it.'
+      ),
+      (
+        Icons.mail_outline_rounded,
+        'Write a polite follow-up email',
+        'Write a short, polite follow-up email to someone who hasn\'t replied in a week.'
+      ),
+      (
+        Icons.flight_takeoff_rounded,
+        'Plan a 3-day trip to Tokyo',
+        'Plan a relaxed 3-day trip to Tokyo with food and sightseeing.'
+      ),
     ];
 
     return Column(
@@ -599,7 +696,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
   }
 
   // ── Composer Capsule matching Apple Glass Design ──
-  Widget _buildInputBar(ChatState state, bool isLocal, LocalInferenceState localState) {
+  Widget _buildInputBar(
+      ChatState state, bool isLocal, LocalInferenceState localState) {
     final hasAttachment = state.attachment != null;
     final isGenerating = state.isGenerating;
     final t = AppTokens.of(context);
@@ -617,7 +715,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
             if (hasAttachment) ...[
               GlassContainer(
                 borderRadius: 12,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 margin: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -630,7 +729,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
                     ),
                     const SizedBox(width: 6),
                     InkWell(
-                      onTap: () => ref.read(chatProvider.notifier).setAttachment(null),
+                      onTap: () =>
+                          ref.read(chatProvider.notifier).setAttachment(null),
                       child: Icon(Icons.close, size: 14, color: t.muted),
                     ),
                   ],
@@ -638,83 +738,138 @@ class _ChatViewState extends ConsumerState<ChatView> {
               ),
             ],
 
-            // Floating Apple Glass Input Capsule
-            GlassContainer(
-              borderRadius: 26,
-              color: t.isDark ? const Color(0x331E232E) : const Color(0x88FFFFFF),
-              shadows: t.glassShadows,
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  IconButton(
-                    tooltip: 'Attach file',
-                    onPressed: _pickAttachment,
-                    icon: Icon(Icons.attach_file_rounded, color: t.muted, size: 22),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _inputController,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      style: GoogleFonts.inter(fontSize: 15, color: t.text),
-                      decoration: InputDecoration(
-                        hintText: canType
-                            ? 'Message local offline model…'
-                            : 'Load a model to start chatting',
-                        hintStyle: GoogleFonts.inter(fontSize: 15, color: t.faint),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-                        isDense: true,
-                      ),
-                      onSubmitted: (_) => _handleSend(),
+            // iOS 26 Floating Liquid Glass Message Bar + Separate Circle Liquid Action Button
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: GlassContainer(
+                    borderRadius: 28,
+                    blur: 24,
+                    // color: t.isDark ? const Color(0x661C202B) : const Color(0xAAFFFFFF),
+                    color: Colors.transparent,
+                    shadows: t.glassShadows,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          tooltip: 'Attach file',
+                          onPressed: _pickAttachment,
+                          icon: Icon(Icons.attach_file_rounded,
+                              color: t.muted, size: 22),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _inputController,
+                            minLines: 1,
+                            maxLines: 4,
+                            textInputAction: TextInputAction.send,
+                            style:
+                                GoogleFonts.inter(fontSize: 15, color: t.text),
+                            decoration: InputDecoration(
+                              hintText: _isListening
+                                  ? 'Listening…'
+                                  : (canType
+                                      ? 'Message local offline model…'
+                                      : 'Load a model to start chatting'),
+                              hintStyle: GoogleFonts.inter(
+                                fontSize: 15,
+                                color: _isListening ? t.accent : t.faint,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 10),
+                              isDense: true,
+                            ),
+                            onSubmitted: (_) => _handleSend(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  if (isGenerating)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        Haptics.selectionClick();
-                        ref.read(chatProvider.notifier).stopGeneration();
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 4),
-                        width: 36,
-                        height: 36,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                        child: const Icon(Icons.stop_rounded, size: 20, color: Colors.black),
+                ),
+                const SizedBox(width: 10),
+                if (isGenerating)
+                  GlassContainer(
+                    borderRadius: 26,
+                    blur: 24,
+                    color: t.isDark
+                        ? const Color(0xCCFFFFFF)
+                        : const Color(0xFF1A1D24),
+                    shadows: t.glassShadows,
+                    onTap: () {
+                      ref.read(chatProvider.notifier).stopGeneration();
+                    },
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Icon(
+                        Icons.stop_rounded,
+                        size: 24,
+                        color: t.isDark ? Colors.black : Colors.white,
                       ),
-                    )
-                  else if (_hasInputText)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        Haptics.lightImpact();
-                        _handleSend();
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 4),
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: t.accent,
-                        ),
-                        child: const Icon(Icons.arrow_upward_rounded, size: 20, color: Colors.white),
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Icon(Icons.mic_none_rounded, color: t.faint, size: 22),
                     ),
-                ],
-              ),
+                  )
+                else if (_isListening)
+                  GlassContainer(
+                    borderRadius: 26,
+                    blur: 24,
+                    color: t.red.withValues(alpha: 0.85),
+                    shadows: t.glassShadows,
+                    onTap: _toggleListening,
+                    child: const SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Icon(
+                        Icons.mic_rounded,
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                else if (_hasInputText || hasAttachment)
+                  GlassContainer(
+                    borderRadius: 26,
+                    blur: 24,
+                    color: t.accent.withValues(alpha: 0.90),
+                    shadows: t.glassShadows,
+                    onTap: () {
+                      Haptics.lightImpact();
+                      _handleSend();
+                    },
+                    child: const SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                else
+                  GlassContainer(
+                    borderRadius: 26,
+                    blur: 24,
+                    color: t.isDark
+                        ? const Color(0x661C202B)
+                        : const Color(0xAAFFFFFF),
+                    shadows: t.glassShadows,
+                    onTap: _toggleListening,
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Icon(
+                        Icons.mic_none_rounded,
+                        size: 24,
+                        color: t.text,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -740,12 +895,16 @@ class _ChatViewState extends ConsumerState<ChatView> {
                     'assets/icons/appicon.png',
                     width: 28,
                     height: 28,
-                    errorBuilder: (_, __, ___) => Icon(Icons.token_rounded, size: 28, color: t.accent),
+                    errorBuilder: (_, __, ___) =>
+                        Icon(Icons.token_rounded, size: 28, color: t.accent),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     'LocalLM',
-                    style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: t.text),
+                    style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: t.text),
                   ),
                   const Spacer(),
                   IconButton(
@@ -778,14 +937,18 @@ class _ChatViewState extends ConsumerState<ChatView> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
                         color: isSelected ? t.accent : t.text,
                       ),
                     ),
                     trailing: state.sessions.length > 1
                         ? IconButton(
-                            icon: Icon(Icons.delete_outline_rounded, size: 18, color: t.muted),
-                            onPressed: () => ref.read(chatProvider.notifier).deleteSession(session.id),
+                            icon: Icon(Icons.delete_outline_rounded,
+                                size: 18, color: t.muted),
+                            onPressed: () => ref
+                                .read(chatProvider.notifier)
+                                .deleteSession(session.id),
                           )
                         : null,
                     onTap: () {

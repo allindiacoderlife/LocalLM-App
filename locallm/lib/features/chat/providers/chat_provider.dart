@@ -266,7 +266,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
       try {
         final temperature = (settingsBox.get('temperature', defaultValue: 0.30) as num).toDouble();
-        final maxTokens = (settingsBox.get('max_tokens', defaultValue: 256) as num).toInt();
+        final maxTokens = (settingsBox.get('max_tokens', defaultValue: 1024) as num).toInt();
 
         final stream = _ref.read(localInferenceProvider.notifier).streamGenerate(
           prompt: fullPrompt,

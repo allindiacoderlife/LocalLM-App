@@ -145,7 +145,7 @@ class AppTokens {
       fontWeight: FontWeight.w600,
       letterSpacing: -0.08,
       color: muted);
-  TextStyle get mono => GoogleFonts.firaCode(fontSize: 12.5, color: text);
+  TextStyle get mono => TextStyle(fontFamily: 'monospace', fontSize: 12.5, color: text);
 }
 
 // ── Glass Core Component ───────────────────────────────────────────────
@@ -685,47 +685,79 @@ class AppChips<T> extends StatelessWidget {
   }
 }
 
-/// Apple Glass segmented control with liquid refraction and jelly physics (iOS 26).
+/// Apple-style segmented control with smooth animated sliding indicator.
 class AppSegmented<T> extends StatelessWidget {
   final List<(T, String)> items;
   final T selected;
   final ValueChanged<T> onChanged;
-  const AppSegmented(
-      {super.key,
-      required this.items,
-      required this.selected,
-      required this.onChanged});
+  final double height;
+
+  const AppSegmented({
+    super.key,
+    required this.items,
+    required this.selected,
+    required this.onChanged,
+    this.height = 40,
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
-    final index =
-        items.indexWhere((e) => e.$1 == selected).clamp(0, items.length - 1);
 
-    return lg.GlassSegmentedControl(
-      segments: [
-        for (final item in items)
-          lg.GlassSegment(label: item.$2),
-      ],
-      selectedIndex: index,
-      onSegmentSelected: (i) {
-        if (i >= 0 && i < items.length) {
-          Haptics.selectionClick();
-          onChanged(items[i].$1);
-        }
-      },
-      height: 40,
-      borderRadius: 14,
-      useOwnLayer: true,
-      selectedTextStyle: GoogleFonts.inter(
-        fontSize: 13.5,
-        fontWeight: FontWeight.w600,
-        color: t.text,
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: t.isDark ? const Color(0xFF1E222D) : const Color(0xFFE5E7EB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: t.isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+          width: 0.75,
+        ),
       ),
-      unselectedTextStyle: GoogleFonts.inter(
-        fontSize: 13.5,
-        fontWeight: FontWeight.w500,
-        color: t.muted,
+      child: Row(
+        children: items.map((item) {
+          final isSelected = item.$1 == selected;
+          return Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                Haptics.selectionClick();
+                onChanged(item.$1);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? (t.isDark ? const Color(0xFF2C3242) : Colors.white)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: t.isDark ? 0.35 : 0.08),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1.5),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  item.$2,
+                  style: GoogleFonts.inter(
+                    fontSize: 13.5,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected ? t.text : t.muted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -751,6 +783,9 @@ class AppSwitch extends StatelessWidget {
       value: value,
       onChanged: onChanged,
       activeColor: activeColor ?? t.green,
+      inactiveColor: t.isDark ? const Color(0xFF3A3F4E) : const Color(0xFFD1D5DB),
+      thumbColor: Colors.white,
+      quality: lg.GlassQuality.standard,
       useOwnLayer: true,
     );
   }
@@ -779,12 +814,15 @@ class AppSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
     return lg.GlassSlider(
-      value: value,
+      value: value.clamp(min, max),
       onChanged: onChanged,
       min: min,
       max: max,
       divisions: divisions,
       activeColor: activeColor ?? t.accent,
+      inactiveColor: t.isDark ? const Color(0xFF3A3F4E) : const Color(0xFFE5E7EB),
+      thumbColor: Colors.white,
+      quality: lg.GlassQuality.standard,
       useOwnLayer: true,
     );
   }

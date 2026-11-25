@@ -11,13 +11,21 @@ import 'features/home/views/home_view.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Apple Liquid Glass engine & pre-warm shaders
-  await LiquidGlassWidgets.initialize();
+  // Initialize Apple Liquid Glass engine & pre-warm shaders (with timeout/guard)
+  try {
+    await LiquidGlassWidgets.initialize().timeout(const Duration(seconds: 3));
+  } catch (e) {
+    debugPrint('[LocalLM] LiquidGlass init skipped/error: $e');
+  }
 
   // Initialize Hive local persistence
-  await Hive.initFlutter();
-  await Hive.openBox(AppConstants.settingsBox);
-  await Hive.openBox(AppConstants.chatSessionsBox);
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox(AppConstants.settingsBox);
+    await Hive.openBox(AppConstants.chatSessionsBox);
+  } catch (e) {
+    debugPrint('[LocalLM] Hive init error: $e');
+  }
 
   runApp(
     LiquidGlassWidgets.wrap(
