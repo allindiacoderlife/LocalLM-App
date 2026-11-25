@@ -162,6 +162,7 @@ class GlassContainer extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
+  final lg.GlassQuality quality;
 
   const GlassContainer({
     super.key,
@@ -174,6 +175,7 @@ class GlassContainer extends StatelessWidget {
     this.padding,
     this.margin,
     this.onTap,
+    this.quality = lg.GlassQuality.standard,
   });
 
   @override
@@ -184,6 +186,7 @@ class GlassContainer extends StatelessWidget {
 
     Widget content = lg.AdaptiveGlass(
       shape: lg.LiquidRoundedSuperellipse(borderRadius: borderRadius),
+      quality: quality,
       settings: lg.LiquidGlassSettings(
         blur: blur,
         glassColor: bg,
@@ -685,7 +688,7 @@ class AppChips<T> extends StatelessWidget {
   }
 }
 
-/// Apple-style segmented control with smooth animated sliding indicator.
+/// Apple Glass segmented control with liquid refraction and jelly physics (iOS 26).
 class AppSegmented<T> extends StatelessWidget {
   final List<(T, String)> items;
   final T selected;
@@ -703,61 +706,33 @@ class AppSegmented<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
+    final index =
+        items.indexWhere((e) => e.$1 == selected).clamp(0, items.length - 1);
 
-    return Container(
+    return lg.GlassSegmentedControl(
+      segments: [
+        for (final item in items) lg.GlassSegment(label: item.$2),
+      ],
+      selectedIndex: index,
+      onSegmentSelected: (i) {
+        if (i >= 0 && i < items.length) {
+          Haptics.selectionClick();
+          onChanged(items[i].$1);
+        }
+      },
       height: height,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: t.isDark ? const Color(0xFF1E222D) : const Color(0xFFE5E7EB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: t.isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
-          width: 0.75,
-        ),
+      borderRadius: 14,
+      quality: lg.GlassQuality.standard,
+      useOwnLayer: true,
+      selectedTextStyle: GoogleFonts.inter(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w600,
+        color: t.text,
       ),
-      child: Row(
-        children: items.map((item) {
-          final isSelected = item.$1 == selected;
-          return Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                Haptics.selectionClick();
-                onChanged(item.$1);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? (t.isDark ? const Color(0xFF2C3242) : Colors.white)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: t.isDark ? 0.35 : 0.08),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1.5),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Text(
-                  item.$2,
-                  style: GoogleFonts.inter(
-                    fontSize: 13.5,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? t.text : t.muted,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+      unselectedTextStyle: GoogleFonts.inter(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w500,
+        color: t.muted,
       ),
     );
   }

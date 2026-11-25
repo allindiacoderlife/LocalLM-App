@@ -26,7 +26,9 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
   bool? _sortBySizeAsc; // null = default order, true = asc, false = desc
 
   List<LocalModelPreset> get _filteredPresets {
-    var list = LocalModelPresets.all.where((m) => m.category == _selectedCategory).toList();
+    var list = LocalModelPresets.all
+        .where((m) => m.category == _selectedCategory)
+        .toList();
     if (list.isEmpty) {
       list = LocalModelPresets.all;
     }
@@ -46,18 +48,22 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
       final name = result.files.single.name;
       if (!name.toLowerCase().endsWith('.gguf')) {
         if (mounted) {
-          showToast(context, 'Invalid format', 'Please select a valid .gguf model file.', tone: ToastTone.warning);
+          showToast(context, 'Invalid format',
+              'Please select a valid .gguf model file.',
+              tone: ToastTone.warning);
         }
         return;
       }
 
-      final modelsDir = await ref.read(modelDownloadProvider.notifier).getModelsDirectory();
+      final modelsDir =
+          await ref.read(modelDownloadProvider.notifier).getModelsDirectory();
       final destinationPath = '$modelsDir/$name';
       await File(pickedPath).copy(destinationPath);
       await ref.read(modelDownloadProvider.notifier).refreshDownloadedModels();
 
       if (mounted) {
-        showToast(context, 'Imported', 'Imported $name successfully!', tone: ToastTone.success);
+        showToast(context, 'Imported', 'Imported $name successfully!',
+            tone: ToastTone.success);
       }
     }
   }
@@ -66,7 +72,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
     final downloadState = ref.watch(modelDownloadProvider);
     final inferenceState = ref.watch(localInferenceProvider);
     final isDownloaded = downloadState.downloadedFiles.contains(model.filename);
-    final isLoaded = inferenceState.isModelLoaded && inferenceState.loadedModelName == model.filename;
+    final isLoaded = inferenceState.isModelLoaded &&
+        inferenceState.loadedModelName == model.filename;
     final (badge, color) = _getBadgeInfo(model.name);
 
     showAppSheet(
@@ -85,9 +92,11 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(model.name, style: t.bodyStrong.copyWith(fontSize: 16)),
+                      Text(model.name,
+                          style: t.bodyStrong.copyWith(fontSize: 16)),
                       const SizedBox(height: 3),
-                      Text('By ${model.author} · ${model.ramRequirement}', style: t.caption),
+                      Text('By ${model.author} · ${model.ramRequirement}',
+                          style: t.caption),
                     ],
                   ),
                 ),
@@ -98,10 +107,20 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
             const SizedBox(height: 16),
             AppGroup(
               children: [
-                AppRow(title: 'File size', trailing: Text('${model.sizeMb.toStringAsFixed(0)} MB', style: t.caption)),
-                AppRow(title: 'RAM required', trailing: Text(model.ramRequirement, style: t.caption)),
-                AppRow(title: 'Format', trailing: Text('GGUF (Quantized)', style: t.caption)),
-                AppRow(title: 'Filename', trailing: Text(model.filename, style: t.small, maxLines: 1)),
+                AppRow(
+                    title: 'File size',
+                    trailing: Text('${model.sizeMb.toStringAsFixed(0)} MB',
+                        style: t.caption)),
+                AppRow(
+                    title: 'RAM required',
+                    trailing: Text(model.ramRequirement, style: t.caption)),
+                AppRow(
+                    title: 'Format',
+                    trailing: Text('GGUF (Quantized)', style: t.caption)),
+                AppRow(
+                    title: 'Filename',
+                    trailing:
+                        Text(model.filename, style: t.small, maxLines: 1)),
               ],
             ),
             const SizedBox(height: 20),
@@ -117,13 +136,16 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                   onTap: () async {
                     Navigator.pop(ctx);
                     Haptics.lightImpact();
-                    final path = await ref.read(modelDownloadProvider.notifier).getModelPath(model.filename);
+                    final path = await ref
+                        .read(modelDownloadProvider.notifier)
+                        .getModelPath(model.filename);
                     ref.read(localInferenceProvider.notifier).loadModel(
-                      modelPath: path,
-                      modelName: model.filename,
-                    );
+                          modelPath: path,
+                          modelName: model.filename,
+                        );
                     if (mounted) {
-                      showToast(context, 'Loading', 'Loading ${model.name} into RAM...');
+                      showToast(context, 'Loading',
+                          'Loading ${model.name} into RAM...');
                     }
                   },
                 ),
@@ -135,7 +157,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                   Haptics.lightImpact();
                   ref.read(modelDownloadProvider.notifier).downloadModel(model);
                   if (mounted) {
-                    showToast(context, 'Downloading', 'Downloading ${model.name}...');
+                    showToast(
+                        context, 'Downloading', 'Downloading ${model.name}...');
                   }
                 },
               ),
@@ -187,7 +210,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
     }
 
     final currentKey = box.get(keySettingName, defaultValue: '') as String;
-    final currentModel = box.get('${prov.name}_model', defaultValue: defaultModel) as String;
+    final currentModel =
+        box.get('${prov.name}_model', defaultValue: defaultModel) as String;
 
     final keyCtrl = TextEditingController(text: currentKey);
     final modelCtrl = TextEditingController(text: currentModel);
@@ -248,12 +272,16 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
               label: 'Save & Set as Active Cloud Provider',
               onTap: () {
                 final key = keyCtrl.text.trim();
-                final model = modelCtrl.text.trim().isNotEmpty ? modelCtrl.text.trim() : defaultModel;
+                final model = modelCtrl.text.trim().isNotEmpty
+                    ? modelCtrl.text.trim()
+                    : defaultModel;
                 box.put(keySettingName, key);
                 ref.read(chatProvider.notifier).setProvider(prov!, model);
                 Navigator.pop(ctx);
                 Haptics.selectionClick();
-                showToast(context, 'Saved', '$providerName configured successfully', tone: ToastTone.success);
+                showToast(
+                    context, 'Saved', '$providerName configured successfully',
+                    tone: ToastTone.success);
               },
             ),
           ],
@@ -289,14 +317,20 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
             icon: Icon(Icons.add_rounded, size: 18, color: t.accent),
             label: Text(
               'Import',
-              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: t.accent),
+              style: GoogleFonts.inter(
+                  fontSize: 14, fontWeight: FontWeight.w600, color: t.accent),
             ),
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          4,
+          16,
+          MediaQuery.of(context).padding.bottom + 100,
+        ),
         children: [
           // ── Scope Segmented Control (My models | Browse | Cloud) ──
           AppSegmented<String>(
@@ -344,50 +378,49 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
           scrollDirection: Axis.horizontal,
           clipBehavior: Clip.none,
           children: [
-            if (LocalModelPresets.all.isNotEmpty)
-              _buildFeaturedCard(
-                t,
-                name: 'LFM2.5 1.2B',
-                badge: 'LF',
-                badgeColor: const Color(0xFF14B8A6),
-                subtitle: 'Best for chat',
-                sizeStr: '731 MB',
-                model: LocalModelPresets.all[0],
-              ),
+            _buildFeaturedCard(
+              t,
+              name: 'LFM2.5 1.2B',
+              badge: 'LF',
+              badgeColor: const Color(0xFF14B8A6),
+              subtitle: 'Best for chat',
+              sizeStr: '731 MB',
+              model: LocalModelPresets.byId('lfm2.5-1.2b'),
+            ),
             const SizedBox(width: 10),
-            if (LocalModelPresets.all.length > 7)
-              _buildFeaturedCard(
-                t,
-                name: 'Gemma 4 E2B',
-                badge: 'Ge',
-                badgeColor: const Color(0xFF4285F4),
-                subtitle: 'Understands photos',
-                sizeStr: '2.46 GB',
-                model: LocalModelPresets.all[7],
-              ),
+            _buildFeaturedCard(
+              t,
+              name: 'Gemma 3 4B',
+              badge: 'Ge',
+              badgeColor: const Color(0xFF4285F4),
+              subtitle: 'Understands photos',
+              sizeStr: '2.49 GB',
+              model: LocalModelPresets.byId('gemma-3-4b-vision'),
+            ),
             const SizedBox(width: 10),
-            if (LocalModelPresets.all.length > 8)
-              _buildFeaturedCard(
-                t,
-                name: 'Gemma Vision',
-                badge: 'Ge',
-                badgeColor: const Color(0xFF4285F4),
-                subtitle: 'No filters',
-                sizeStr: '3.0 GB · vision',
-                model: LocalModelPresets.all[8],
-              ),
+            _buildFeaturedCard(
+              t,
+              name: 'Qwen 2.5 Coder',
+              badge: 'Qw',
+              badgeColor: const Color(0xFF6366F1),
+              subtitle: 'Offline coding',
+              sizeStr: '986 MB',
+              model: LocalModelPresets.byId('qwen2.5-coder-1.5b'),
+            ),
           ],
         ),
       ),
       const SizedBox(height: 18),
 
-      // Filter Chips: Chat | Image | Uncensored | Vision
+      // Filter Chips: Chat | Coding | Reasoning | Vision | Uncensored | Image
       AppChips<String>(
         items: const [
           ('chat', 'Chat'),
-          ('image', 'Image'),
-          ('uncensored', 'Uncensored'),
+          ('coding', 'Coding'),
+          ('reasoning', 'Reasoning'),
           ('vision', 'Vision'),
+          ('uncensored', 'Uncensored'),
+          ('image', 'Image'),
         ],
         selected: _selectedCategory,
         onSelected: (cat) => setState(() => _selectedCategory = cat),
@@ -421,7 +454,9 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                     Icon(
                       _sortBySizeAsc == null
                           ? Icons.swap_vert_rounded
-                          : (_sortBySizeAsc! ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded),
+                          : (_sortBySizeAsc!
+                              ? Icons.arrow_upward_rounded
+                              : Icons.arrow_downward_rounded),
                       size: 16,
                       color: _sortBySizeAsc != null ? t.accent : t.muted,
                     ),
@@ -432,7 +467,9 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                           : (_sortBySizeAsc! ? 'Size: Asc' : 'Size: Desc'),
                       style: t.small.copyWith(
                         color: _sortBySizeAsc != null ? t.accent : t.muted,
-                        fontWeight: _sortBySizeAsc != null ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: _sortBySizeAsc != null
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -447,14 +484,16 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
       AppGroup(
         dividerIndent: 62,
         children: [
-          for (final model in displayedPresets) _buildModelDownloadRow(t, model, downloadState),
+          for (final model in displayedPresets)
+            _buildModelDownloadRow(t, model, downloadState),
         ],
       ),
     ];
   }
 
   // ── ACTIVE DOWNLOAD PROGRESS CARD (Screenshots 1 & 3) ──
-  Widget _buildActiveDownloadCard(AppTokens t, ModelDownloadState downloadState) {
+  Widget _buildActiveDownloadCard(
+      AppTokens t, ModelDownloadState downloadState) {
     final filename = downloadState.activeDownloadingFilename;
     if (filename == null) return const SizedBox.shrink();
 
@@ -474,7 +513,9 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
 
     final prog = downloadState.progress[filename] ?? 0.0;
     final percent = (prog * 100).toInt();
-    final speed = downloadState.downloadSpeed.isNotEmpty ? downloadState.downloadSpeed : '0 MB/s';
+    final speed = downloadState.downloadSpeed.isNotEmpty
+        ? downloadState.downloadSpeed
+        : '0 MB/s';
     final eta = downloadState.eta.isNotEmpty ? downloadState.eta : '';
     final infoParts = <String>['$percent%'];
     if (speed.isNotEmpty) infoParts.add(speed);
@@ -543,7 +584,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
     );
   }
 
-  Widget _buildDownloadProgressWidget(AppTokens t, double prog, String filename, {double size = 32}) {
+  Widget _buildDownloadProgressWidget(AppTokens t, double prog, String filename,
+      {double size = 32}) {
     final percent = (prog * 100).toInt();
     return GestureDetector(
       onTap: () {
@@ -587,7 +629,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
   }) {
     final downloadState = ref.watch(modelDownloadProvider);
     final isDownloaded = downloadState.downloadedFiles.contains(model.filename);
-    final isDownloading = downloadState.activeDownloadingFilename == model.filename;
+    final isDownloading =
+        downloadState.activeDownloadingFilename == model.filename;
     final prog = downloadState.progress[model.filename] ?? 0.0;
 
     return SizedBox(
@@ -613,7 +656,10 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                   style: t.bodyStrong.copyWith(height: 1.25),
                 ),
                 const SizedBox(height: 2),
-                Text(subtitle, style: t.small, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(subtitle,
+                    style: t.small,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -623,18 +669,23 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                     if (isDownloaded)
                       Icon(Icons.check_circle_rounded, size: 22, color: t.green)
                     else if (isDownloading)
-                      _buildDownloadProgressWidget(t, prog, model.filename, size: 30)
+                      _buildDownloadProgressWidget(t, prog, model.filename,
+                          size: 30)
                     else
                       GestureDetector(
                         onTap: () {
                           Haptics.lightImpact();
-                          ref.read(modelDownloadProvider.notifier).downloadModel(model);
+                          ref
+                              .read(modelDownloadProvider.notifier)
+                              .downloadModel(model);
                         },
                         child: Container(
                           width: 28,
                           height: 28,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: t.fill),
-                          child: Icon(Icons.arrow_downward_rounded, size: 16, color: t.text),
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle, color: t.fill),
+                          child: Icon(Icons.arrow_downward_rounded,
+                              size: 16, color: t.text),
                         ),
                       ),
                   ],
@@ -647,9 +698,11 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
     );
   }
 
-  Widget _buildModelDownloadRow(AppTokens t, LocalModelPreset model, ModelDownloadState downloadState) {
+  Widget _buildModelDownloadRow(
+      AppTokens t, LocalModelPreset model, ModelDownloadState downloadState) {
     final isDownloaded = downloadState.downloadedFiles.contains(model.filename);
-    final isDownloading = downloadState.activeDownloadingFilename == model.filename;
+    final isDownloading =
+        downloadState.activeDownloadingFilename == model.filename;
     final prog = downloadState.progress[model.filename] ?? 0.0;
     final (badge, color) = _getBadgeInfo(model.name);
     final sizeMb = model.sizeMb.toStringAsFixed(0);
@@ -688,13 +741,17 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                 GestureDetector(
                   onTap: () {
                     Haptics.lightImpact();
-                    ref.read(modelDownloadProvider.notifier).downloadModel(model);
+                    ref
+                        .read(modelDownloadProvider.notifier)
+                        .downloadModel(model);
                   },
                   child: Container(
                     width: 32,
                     height: 32,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: t.fill),
-                    child: Icon(Icons.arrow_downward_rounded, size: 17, color: t.text.withValues(alpha: 0.8)),
+                    decoration:
+                        BoxDecoration(shape: BoxShape.circle, color: t.fill),
+                    child: Icon(Icons.arrow_downward_rounded,
+                        size: 17, color: t.text.withValues(alpha: 0.8)),
                   ),
                 ),
             ],
@@ -720,8 +777,10 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
               Container(
                 width: 56,
                 height: 56,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: t.fill),
-                child: Icon(Icons.arrow_downward_rounded, size: 28, color: t.muted),
+                decoration:
+                    BoxDecoration(shape: BoxShape.circle, color: t.fill),
+                child: Icon(Icons.arrow_downward_rounded,
+                    size: 28, color: t.muted),
               ),
               const SizedBox(height: 16),
               Text(
@@ -767,7 +826,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(inferenceState.loadedModelName ?? 'Model', style: t.bodyStrong),
+                    Text(inferenceState.loadedModelName ?? 'Model',
+                        style: t.bodyStrong),
                     const SizedBox(height: 2),
                     Text('Loaded · CPU · GGUF', style: t.caption),
                   ],
@@ -776,27 +836,29 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
               PillButton(
                 label: 'Unload',
                 destructive: true,
-                onTap: () => ref.read(localInferenceProvider.notifier).unloadModel(),
+                onTap: () =>
+                    ref.read(localInferenceProvider.notifier).unloadModel(),
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
       ],
-
       SectionHeader('Downloaded models (${downloaded.length})'),
       AppGroup(
         dividerIndent: 62,
         children: [
           for (final fileName in downloaded)
             Builder(builder: (ctx) {
-              final isLoaded = inferenceState.isModelLoaded && inferenceState.loadedModelName == fileName;
+              final isLoaded = inferenceState.isModelLoaded &&
+                  inferenceState.loadedModelName == fileName;
               final (badge, color) = _getBadgeInfo(fileName);
 
               return ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 56),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                   child: Row(
                     children: [
                       _buildAvatar(badge, color, size: 36),
@@ -805,9 +867,13 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(fileName, style: t.bodyStrong, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            Text(fileName,
+                                style: t.bodyStrong,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 2),
-                            Text(isLoaded ? '● Loaded into RAM' : 'Local file', style: t.caption),
+                            Text(isLoaded ? '● Loaded into RAM' : 'Local file',
+                                style: t.caption),
                           ],
                         ),
                       ),
@@ -820,39 +886,51 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                           primary: true,
                           onTap: () async {
                             Haptics.lightImpact();
-                            final modelPath = await ref.read(modelDownloadProvider.notifier).getModelPath(fileName);
+                            final modelPath = await ref
+                                .read(modelDownloadProvider.notifier)
+                                .getModelPath(fileName);
                             final box = Hive.box(AppConstants.settingsBox);
-                            final contextSize = (box.get('context_size', defaultValue: 1024) as num).toInt();
+                            final contextSize = (box.get('context_size',
+                                    defaultValue: 1024) as num)
+                                .toInt();
                             ref.read(localInferenceProvider.notifier).loadModel(
-                              modelPath: modelPath,
-                              modelName: fileName,
-                              contextSize: contextSize,
-                            );
+                                  modelPath: modelPath,
+                                  modelName: fileName,
+                                  contextSize: contextSize,
+                                );
                             if (mounted) {
-                              showToast(context, 'Loading', 'Loading $fileName...');
+                              showToast(
+                                  context, 'Loading', 'Loading $fileName...');
                             }
                           },
                         ),
                       const SizedBox(width: 6),
                       IconButton(
-                        icon: Icon(Icons.delete_outline_rounded, size: 20, color: t.faint),
+                        icon: Icon(Icons.delete_outline_rounded,
+                            size: 20, color: t.faint),
                         tooltip: 'Delete model',
                         onPressed: () async {
                           final ok = await confirmSheet(
                             context,
                             title: 'Delete $fileName?',
-                            message: 'This will remove the downloaded .gguf file from device storage to free up space.',
+                            message:
+                                'This will remove the downloaded .gguf file from device storage to free up space.',
                             confirmLabel: 'Delete File',
                             destructive: true,
                           );
                           if (ok && mounted) {
                             Haptics.selectionClick();
                             if (isLoaded) {
-                              await ref.read(localInferenceProvider.notifier).unloadModel();
+                              await ref
+                                  .read(localInferenceProvider.notifier)
+                                  .unloadModel();
                             }
-                            await ref.read(modelDownloadProvider.notifier).deleteModel(fileName);
+                            await ref
+                                .read(modelDownloadProvider.notifier)
+                                .deleteModel(fileName);
                             if (mounted) {
-                              showToast(context, 'Deleted', '$fileName removed');
+                              showToast(
+                                  context, 'Deleted', '$fileName removed');
                             }
                           }
                         },
@@ -888,15 +966,23 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    chatState.selectedModel.isNotEmpty ? chatState.selectedModel : 'No online model selected',
+                    chatState.selectedModel.isNotEmpty
+                        ? chatState.selectedModel
+                        : 'No online model selected',
                     style: t.bodyStrong,
                   ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Container(width: 6, height: 6, decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle)),
+                      Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                              color: t.accent, shape: BoxShape.circle)),
                       const SizedBox(width: 6),
-                      Text('Cloud · ${chatState.selectedProvider.name.toUpperCase()}', style: t.caption),
+                      Text(
+                          'Cloud · ${chatState.selectedProvider.name.toUpperCase()}',
+                          style: t.caption),
                     ],
                   ),
                 ],
@@ -904,7 +990,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
             ),
             PillButton(
               label: 'Change',
-              onTap: () => _showCloudProviderConfig(chatState.selectedProvider.name),
+              onTap: () =>
+                  _showCloudProviderConfig(chatState.selectedProvider.name),
             ),
           ],
         ),
@@ -923,7 +1010,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
           _buildProviderRow(t, 'Custom API', Icons.tune_rounded),
         ],
       ),
-      const SectionFootnote('Tap a provider to choose a model. Keys are stored on this device.'),
+      const SectionFootnote(
+          'Tap a provider to choose a model. Keys are stored on this device.'),
     ];
   }
 
@@ -952,7 +1040,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
         break;
     }
 
-    final hasKey = (box.get(keySettingName, defaultValue: '') as String).isNotEmpty;
+    final hasKey =
+        (box.get(keySettingName, defaultValue: '') as String).isNotEmpty;
 
     return AppRow(
       icon: icon,
@@ -991,6 +1080,9 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
     if (lower.contains('llama')) return ('Ll', const Color(0xFFF97316));
     if (lower.contains('smol')) return ('Sm', const Color(0xFF22C55E));
     if (lower.contains('deepseek')) return ('DS', const Color(0xFF0EA5E9));
-    return (name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase(), const Color(0xFF8B5CF6));
+    return (
+      name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase(),
+      const Color(0xFF8B5CF6)
+    );
   }
 }

@@ -7,7 +7,7 @@ class LocalModelPreset {
   final double sizeMb;
   final String ramRequirement;
   final String description;
-  final String category; // 'chat', 'image', 'uncensored', 'vision'
+  final String category; // 'chat', 'coding', 'reasoning', 'vision', 'uncensored', 'image'
 
   const LocalModelPreset({
     required this.id,
@@ -23,18 +23,23 @@ class LocalModelPreset {
 }
 
 class LocalModelPresets {
+  static LocalModelPreset byId(String id) =>
+      all.firstWhere((m) => m.id == id, orElse: () => all.first);
+
   static const List<LocalModelPreset> all = [
-    // Top recommended LFM from screenshot
+    // ==========================================
+    // 1. GENERAL CHAT (Low -> High Device)
+    // ==========================================
     LocalModelPreset(
-      id: 'lfm2.5-1.2b',
-      name: 'LFM2.5 1.2B Instruct (Q4_K_M)',
-      author: 'Liquid AI',
-      filename: 'lfm2.5-1.2b-instruct-q4_k_m.gguf',
+      id: 'smollm2-360m-q4',
+      name: 'SmolLM2 360M (Ultra Light)',
+      author: 'HuggingFaceTB',
+      filename: 'SmolLM2-360M-Instruct-Q4_K_M.gguf',
       downloadUrl:
-          'https://huggingface.co/LiquidCloud/LFM-1.2B-Instruct-GGUF/resolve/main/LFM-1.2B-Instruct-Q4_K_M.gguf',
-      sizeMb: 731.0,
-      ramRequirement: '1.2 GB RAM',
-      description: 'Best for chat. Ultra-efficient Liquid Neural Network architecture for on-device chat.',
+          'https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF/resolve/main/SmolLM2-360M-Instruct-Q4_K_M.gguf',
+      sizeMb: 271.0,
+      ramRequirement: '1 GB RAM · Low-End Phone',
+      description: 'Ultra-compact 4-bit model for budget phones and low-RAM devices.',
       category: 'chat',
     ),
     LocalModelPreset(
@@ -45,7 +50,7 @@ class LocalModelPresets {
       downloadUrl:
           'https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q8_0.gguf',
       sizeMb: 386.0,
-      ramRequirement: '1 GB RAM',
+      ramRequirement: '1 GB RAM · High Quality',
       description: 'High-precision 8-bit model for fast answers and reasoning.',
       category: 'chat',
     ),
@@ -57,32 +62,20 @@ class LocalModelPresets {
       downloadUrl:
           'https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf',
       sizeMb: 586.0,
-      ramRequirement: 'LiteRT',
+      ramRequirement: '1.5 GB RAM · Mobile',
       description: 'Concise lightweight multilingual model optimized for mobile.',
       category: 'chat',
     ),
     LocalModelPreset(
-      id: 'gemma3-1b',
-      name: 'Gemma 3 1B',
-      author: 'Google',
-      filename: 'gemma-3-1b-it-q4_0.gguf',
+      id: 'lfm2.5-1.2b',
+      name: 'LFM2.5 1.2B Instruct (Q4_K_M)',
+      author: 'Liquid AI',
+      filename: 'lfm2.5-1.2b-instruct-q4_k_m.gguf',
       downloadUrl:
-          'https://huggingface.co/google/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf',
-      sizeMb: 722.0,
-      ramRequirement: 'Q4_0',
-      description: 'Google state-of-the-art mobile language model.',
-      category: 'chat',
-    ),
-    LocalModelPreset(
-      id: 'llama-3.2-1b',
-      name: 'Llama-3.2-1B',
-      author: 'Meta',
-      filename: 'Llama-3.2-1B-Instruct-Q4_K_M.gguf',
-      downloadUrl:
-          'https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf',
-      sizeMb: 800.0,
-      ramRequirement: 'Q4_K_M',
-      description: "Meta's flagship on-device language model, optimized for mobile dialogue.",
+          'https://huggingface.co/LiquidCloud/LFM-1.2B-Instruct-GGUF/resolve/main/LFM-1.2B-Instruct-Q4_K_M.gguf',
+      sizeMb: 731.0,
+      ramRequirement: '2 GB RAM · Best for Chat',
+      description: 'Best for chat. Ultra-efficient Liquid Neural Network architecture for on-device chat.',
       category: 'chat',
     ),
     LocalModelPreset(
@@ -92,62 +85,175 @@ class LocalModelPresets {
       filename: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
       downloadUrl:
           'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf',
-      sizeMb: 1490.0,
-      ramRequirement: 'LiteRT',
-      description: 'High-reasoning general assistant with 1.5B parameters.',
+      sizeMb: 1120.0,
+      ramRequirement: '3 GB RAM · Budget Device',
+      description: 'Fast everyday assistant with strong instruction following in 1.5B parameters.',
       category: 'chat',
     ),
     LocalModelPreset(
-      id: 'smollm2-360m-q4',
-      name: 'SmolLM2 360M (Ultra Light 4-bit)',
-      author: 'HuggingFaceTB',
-      filename: 'smollm2-360m-instruct-q4_k_m.gguf',
+      id: 'qwen3-4b-q4',
+      name: 'Qwen3 4B',
+      author: 'Qwen',
+      filename: 'Qwen3-4B-Q4_K_M.gguf',
       downloadUrl:
-          'https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q4_k_m.gguf',
-      sizeMb: 145.0,
-      ramRequirement: '500 MB RAM',
-      description: 'Super compact 145MB 4-bit model. Runs on low-RAM phones without memory pressure.',
+          'https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf',
+      sizeMb: 2500.0,
+      ramRequirement: '6 GB RAM · Mid-Range Phone / Laptop',
+      description: 'Balanced multilingual chat and hybrid thinking model in a compact 2.5 GB file.',
       category: 'chat',
     ),
-    // Vision models
     LocalModelPreset(
-      id: 'gemma-4-e2b',
-      name: 'Gemma 4 E2B',
-      author: 'Google',
-      filename: 'gemma-4-e2b-vision-q4_k.gguf',
+      id: 'qwen3-8b-q4',
+      name: 'Qwen3 8B',
+      author: 'Qwen',
+      filename: 'Qwen3-8B-Q4_K_M.gguf',
       downloadUrl:
-          'https://huggingface.co/google/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf',
-      sizeMb: 2460.0,
-      ramRequirement: 'Understands photos',
-      description: 'Understands photos and visual diagrams locally on phone.',
+          'https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf',
+      sizeMb: 5030.0,
+      ramRequirement: '8–12 GB RAM · Mid-Range PC',
+      description: 'Default all-around local assistant with strong general knowledge and tool use.',
+      category: 'chat',
+    ),
+    LocalModelPreset(
+      id: 'qwen3-30b-a3b-q4',
+      name: 'Qwen3 30B (MoE)',
+      author: 'Qwen',
+      filename: 'Qwen3-30B-A3B-Q4_K_M.gguf',
+      downloadUrl:
+          'https://huggingface.co/Qwen/Qwen3-30B-A3B-GGUF/resolve/main/Qwen3-30B-A3B-Q4_K_M.gguf',
+      sizeMb: 18600.0,
+      ramRequirement: '24 GB+ VRAM/RAM · High-End PC',
+      description: '30B Mixture-of-Experts (3B active) delivering fast, desktop-grade chat and RAG.',
+      category: 'chat',
+    ),
+
+    // ==========================================
+    // 2. CODING (Low -> High Device)
+    // ==========================================
+    LocalModelPreset(
+      id: 'qwen2.5-coder-1.5b',
+      name: 'Qwen 2.5 Coder 1.5B',
+      author: 'Qwen',
+      filename: 'qwen2.5-coder-1.5b-instruct-q4_k_m.gguf',
+      downloadUrl:
+          'https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf',
+      sizeMb: 986.0,
+      ramRequirement: '3 GB RAM · Low-End Device',
+      description: 'Lightweight offline code completion and snippet generator.',
+      category: 'coding',
+    ),
+    LocalModelPreset(
+      id: 'qwen2.5-coder-7b',
+      name: 'Qwen 2.5 Coder 7B',
+      author: 'Qwen',
+      filename: 'qwen2.5-coder-7b-instruct-q4_k_m.gguf',
+      downloadUrl:
+          'https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q4_k_m.gguf',
+      sizeMb: 4680.0,
+      ramRequirement: '8 GB RAM · Mid-Range PC',
+      description: 'Strong multi-language code generation, debugging, and refactoring.',
+      category: 'coding',
+    ),
+    LocalModelPreset(
+      id: 'qwen2.5-coder-14b',
+      name: 'Qwen 2.5 Coder 14B',
+      author: 'Qwen',
+      filename: 'qwen2.5-coder-14b-instruct-q4_k_m.gguf',
+      downloadUrl:
+          'https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct-GGUF/resolve/main/qwen2.5-coder-14b-instruct-q4_k_m.gguf',
+      sizeMb: 8990.0,
+      ramRequirement: '16 GB RAM · High-Mid PC',
+      description: 'High-accuracy local coding assistant for complex multi-file logic.',
+      category: 'coding',
+    ),
+
+    // ==========================================
+    // 3. REASONING (Low -> High Device)
+    // ==========================================
+    LocalModelPreset(
+      id: 'deepseek-r1-qwen-1.5b',
+      name: 'DeepSeek-R1 Distill 1.5B',
+      author: 'DeepSeek',
+      filename: 'DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf',
+      downloadUrl:
+          'https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf',
+      sizeMb: 1120.0,
+      ramRequirement: '3 GB RAM · Low-End Device',
+      description: 'Step-by-step math and logic reasoning distilled for mobile devices.',
+      category: 'reasoning',
+    ),
+    LocalModelPreset(
+      id: 'deepseek-r1-qwen-7b',
+      name: 'DeepSeek-R1 Distill 7B',
+      author: 'DeepSeek',
+      filename: 'DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf',
+      downloadUrl:
+          'https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf',
+      sizeMb: 4680.0,
+      ramRequirement: '8 GB RAM · Mid-Range PC',
+      description: 'Strong chain-of-thought reasoning for math, algorithms, and logic puzzles.',
+      category: 'reasoning',
+    ),
+
+    // ==========================================
+    // 4. VISION (Low -> High Device)
+    // ==========================================
+    LocalModelPreset(
+      id: 'gemma-3-4b-vision',
+      name: 'Gemma 3 4B Vision',
+      author: 'Google',
+      filename: 'gemma-3-4b-it-Q4_K_M.gguf',
+      downloadUrl:
+          'https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/main/gemma-3-4b-it-Q4_K_M.gguf',
+      sizeMb: 2490.0,
+      ramRequirement: '6 GB RAM · Understands Photos',
+      description: 'Multimodal model for photo understanding, OCR, and diagram reading on device.',
       category: 'vision',
     ),
     LocalModelPreset(
-      id: 'gemma-vision-3b',
-      name: 'Gemma Vision 3.0 GB',
+      id: 'gemma-3-12b-vision',
+      name: 'Gemma 3 12B Vision',
       author: 'Google',
-      filename: 'gemma-vision-3.0gb-q4.gguf',
+      filename: 'gemma-3-12b-it-Q4_K_M.gguf',
       downloadUrl:
-          'https://huggingface.co/bartowski/Llama-3.2-11B-Vision-Instruct-GGUF/resolve/main/Llama-3.2-11B-Vision-Instruct-Q4_K_M.gguf',
-      sizeMb: 3000.0,
-      ramRequirement: 'No filters · 3.0 GB',
-      description: 'Multi-modal vision and image perception model.',
+          'https://huggingface.co/unsloth/gemma-3-12b-it-GGUF/resolve/main/gemma-3-12b-it-Q4_K_M.gguf',
+      sizeMb: 7300.0,
+      ramRequirement: '12–16 GB RAM · High-Detail Vision',
+      description: 'High-accuracy multimodal vision and document analysis model.',
       category: 'vision',
     ),
-    // Uncensored models
+
+    // ==========================================
+    // 5. UNCENSORED (Low -> High Device)
+    // ==========================================
     LocalModelPreset(
-      id: 'dolphin-2.9-llama3-1b',
-      name: 'Dolphin 2.9 Llama3 1B',
+      id: 'dolphin-3.0-llama3.2-3b',
+      name: 'Dolphin 3.0 Llama 3.2 3B',
       author: 'Eric Hartford',
-      filename: 'dolphin-2.9-llama3-1b.Q4_K_M.gguf',
+      filename: 'Dolphin3.0-Llama3.2-3B-Q4_K_M.gguf',
       downloadUrl:
-          'https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf',
-      sizeMb: 850.0,
-      ramRequirement: '2 GB RAM',
-      description: 'Uncensored assistant with zero safety filters and unfiltered reasoning.',
+          'https://huggingface.co/bartowski/Dolphin3.0-Llama3.2-3B-GGUF/resolve/main/Dolphin3.0-Llama3.2-3B-Q4_K_M.gguf',
+      sizeMb: 2020.0,
+      ramRequirement: '4 GB RAM · Unfiltered',
+      description: 'Compact, steerable uncensored assistant for phones and low-RAM devices.',
       category: 'uncensored',
     ),
-    // Image Generation Models
+    LocalModelPreset(
+      id: 'dolphin-3.0-llama3.1-8b',
+      name: 'Dolphin 3.0 Llama 3.1 8B',
+      author: 'Eric Hartford',
+      filename: 'Dolphin3.0-Llama3.1-8B-Q4_K_M.gguf',
+      downloadUrl:
+          'https://huggingface.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF/resolve/main/Dolphin3.0-Llama3.1-8B-Q4_K_M.gguf',
+      sizeMb: 4920.0,
+      ramRequirement: '8 GB RAM · Unfiltered',
+      description: 'Full-featured uncensored 8B model with coding, math, and general chat support.',
+      category: 'uncensored',
+    ),
+
+    // ==========================================
+    // 6. IMAGE GENERATION
+    // ==========================================
     LocalModelPreset(
       id: 'sd-turbo-mobile',
       name: 'Stable Diffusion Turbo Lite',

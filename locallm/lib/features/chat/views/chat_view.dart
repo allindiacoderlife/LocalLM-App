@@ -350,15 +350,18 @@ class _ChatViewState extends ConsumerState<ChatView> {
           const SizedBox(width: 6),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
+          Positioned.fill(
             child: messages.isEmpty
                 ? _buildEmptyState(context, isLocalMode, localState,
                     downloadState.downloadedFiles.length)
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    padding: EdgeInsets.only(
+                      top: 8,
+                      bottom: MediaQuery.of(context).padding.bottom + 92,
+                    ),
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final msg = messages[index];
@@ -372,7 +375,12 @@ class _ChatViewState extends ConsumerState<ChatView> {
                     },
                   ),
           ),
-          _buildInputBar(chatState, isLocalMode, localState),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildInputBar(chatState, isLocalMode, localState),
+          ),
         ],
       ),
     );
@@ -389,7 +397,12 @@ class _ChatViewState extends ConsumerState<ChatView> {
     final typing = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        MediaQuery.of(context).padding.bottom + 92,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -704,7 +717,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
     final canType = !isLocal || localState.isModelLoaded;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
       color: Colors.transparent,
       child: SafeArea(
         top: false,
@@ -745,9 +758,11 @@ class _ChatViewState extends ConsumerState<ChatView> {
                 Expanded(
                   child: GlassContainer(
                     borderRadius: 28,
-                    blur: 24,
-                    // color: t.isDark ? const Color(0x661C202B) : const Color(0xAAFFFFFF),
-                    color: Colors.transparent,
+                    blur: 14,
+                    quality: GlassQuality.premium,
+                    color: t.isDark
+                        ? const Color(0x38161A22)
+                        : const Color(0x66FFFFFF),
                     shadows: t.glassShadows,
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -853,10 +868,11 @@ class _ChatViewState extends ConsumerState<ChatView> {
                 else
                   GlassContainer(
                     borderRadius: 26,
-                    blur: 24,
+                    blur: 14,
+                    quality: GlassQuality.premium,
                     color: t.isDark
-                        ? const Color(0x661C202B)
-                        : const Color(0xAAFFFFFF),
+                        ? const Color(0x38161A22)
+                        : const Color(0x66FFFFFF),
                     shadows: t.glassShadows,
                     onTap: _toggleListening,
                     child: SizedBox(
