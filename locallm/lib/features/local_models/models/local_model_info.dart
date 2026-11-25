@@ -294,7 +294,7 @@ class LocalModelPresets {
       ramRequirement: '4 GB VRAM / 8 GB RAM · Low-End',
       description:
           'Fast legacy model. Best for fast 512x512 generations on older laptops and mobile devices.',
-      category: 'image_generation',
+      category: 'image',
     ),
     LocalModelPreset(
       id: 'sdxl-turbo-q4',
@@ -307,7 +307,7 @@ class LocalModelPresets {
       ramRequirement: '6–8 GB VRAM / VRAM · Budget GPU',
       description:
           'Ultra-fast image maker. Generates solid 512x512 images in only 1–4 steps.',
-      category: 'image_generation',
+      category: 'image',
     ),
     LocalModelPreset(
       id: 'sd-3.5-medium-q4',
@@ -320,7 +320,7 @@ class LocalModelPresets {
       ramRequirement: '6–8 GB VRAM · Mid-Range Device',
       description:
           'Compact 2B parameter version of SD 3.5. Excellent text rendering and prompt alignment.',
-      category: 'image_generation',
+      category: 'image',
     ),
     LocalModelPreset(
       id: 'flux1-schnell-q4',
@@ -333,7 +333,7 @@ class LocalModelPresets {
       ramRequirement: '12–16 GB RAM/VRAM · High-Mid PC',
       description:
           'Top-tier photorealism and text in just 4 steps using a 12B model.',
-      category: 'image_generation',
+      category: 'image',
     ),
     LocalModelPreset(
       id: 'flux1-dev-q4',
@@ -346,7 +346,7 @@ class LocalModelPresets {
       ramRequirement: '16–24 GB RAM/VRAM · Enthusiast',
       description:
           'Best-in-class open image model. Hyper-detailed prompt following, hands, and text.',
-      category: 'image_generation',
+      category: 'image',
     ),
   ];
 }
