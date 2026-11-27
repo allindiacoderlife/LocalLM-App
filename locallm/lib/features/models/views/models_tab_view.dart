@@ -115,23 +115,29 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
     if (choice == null || !mounted) return;
 
     try {
-      final queue = <({String path, String name})>[];
-
-      setState(() => _isPreparingImport = true);
+      final queue = <ImportFileItem>[];
 
       if (choice == 'files') {
         final result = await FilePicker.pickFiles(
           type: FileType.any,
           allowMultiple: true,
+          withReadStream: true,
         );
         if (result != null) {
           for (final f in result.files) {
-            if (f.path != null && f.name.toLowerCase().endsWith('.gguf')) {
-              queue.add((path: f.path!, name: f.name));
+            if (f.name.toLowerCase().endsWith('.gguf') &&
+                (f.readStream != null || f.path != null)) {
+              queue.add(ImportFileItem(
+                name: f.name,
+                path: f.path,
+                readStream: f.readStream,
+                sizeBytes: f.size,
+              ));
             }
           }
         }
       } else if (choice == 'folder') {
+        setState(() => _isPreparingImport = true);
         final dirPath = await FilePicker.getDirectoryPath();
         if (dirPath != null) {
           final dir = Directory(dirPath);
@@ -141,14 +147,13 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
               if (entity is File &&
                   entity.path.toLowerCase().endsWith('.gguf')) {
                 final name = entity.uri.pathSegments.last;
-                queue.add((path: entity.path, name: name));
+                queue.add(ImportFileItem(name: name, path: entity.path));
               }
             }
           }
         }
+        if (mounted) setState(() => _isPreparingImport = false);
       }
-
-      if (mounted) setState(() => _isPreparingImport = false);
 
       if (queue.isEmpty) {
         if (mounted && choice == 'folder') {
@@ -769,13 +774,19 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
         ? downloadState.downloadSpeed
         : (downloadState.isImporting ? 'Copying…' : '0 MB/s');
     final eta = downloadState.eta.isNotEmpty ? downloadState.eta : '';
+    final remainingMb = (downloadState.totalMb - downloadState.downloadedMb)
+        .clamp(0, downloadState.totalMb);
     final memStr = downloadState.totalMb > 0
-        ? '${downloadState.downloadedMb}/${downloadState.totalMb} MB'
+        ? '${downloadState.downloadedMb} MB of ${downloadState.totalMb} MB'
         : '';
     final infoParts = <String>['$percent%'];
     if (memStr.isNotEmpty) infoParts.add(memStr);
     if (speed.isNotEmpty) infoParts.add(speed);
-    if (eta.isNotEmpty) infoParts.add('$eta left');
+    if (downloadState.isImporting && downloadState.totalMb > 0) {
+      infoParts.add('$remainingMb MB left');
+    } else if (eta.isNotEmpty) {
+      infoParts.add('$eta left');
+    }
     final infoText = infoParts.join(' · ');
     final queueCount = downloadState.importQueue.length;
 
@@ -788,20 +799,24 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
         border: Border.all(color: t.hairline, width: 0.5),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: t.fill,
-            ),
-            child: Icon(
-              downloadState.isImporting
-                  ? Icons.drive_file_move_outlined
-                  : Icons.arrow_downward_rounded,
-              size: 20,
-              color: t.text,
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: t.fill,
+              ),
+              child: Icon(
+                downloadState.isImporting
+                    ? Icons.file_upload_outlined
+                    : Icons.arrow_downward_rounded,
+                size: 20,
+                color: t.text,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -810,12 +825,21 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  preset.name,
+                  downloadState.isImporting ? 'Importing' : preset.name,
                   style: t.bodyStrong,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                if (downloadState.isImporting) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Copying to app storage... $filename',
+                    style: t.caption.copyWith(fontSize: 12.5),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 10),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(2),
                   child: LinearProgressIndicator(
@@ -825,7 +849,7 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                     minHeight: 3.5,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   infoText,
                   style: t.caption.copyWith(fontSize: 12),

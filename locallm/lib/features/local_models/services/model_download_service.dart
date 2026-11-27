@@ -6,6 +6,20 @@ import 'package:path_provider/path_provider.dart';
 import '../models/local_model_info.dart';
 import '../../../core/services/download_notification_service.dart';
 
+class ImportFileItem {
+  final String name;
+  final String? path;
+  final Stream<List<int>>? readStream;
+  final int? sizeBytes;
+
+  const ImportFileItem({
+    required this.name,
+    this.path,
+    this.readStream,
+    this.sizeBytes,
+  });
+}
+
 class ModelDownloadState {
   final Map<String, double> progress; // filename -> 0.0 .. 1.0
   final List<String> downloadedFiles;
@@ -359,7 +373,7 @@ class ModelDownloadNotifier extends StateNotifier<ModelDownloadState> {
     state = state.copyWith(clearActive: true);
   }
 
-  Future<int> importModelQueue(List<({String path, String name})> items) async {
+  Future<int> importModelQueue(List<ImportFileItem> items) async {
     if (state.activeDownloadingFilename != null) {
       throw Exception('Another download or import is currently in progress.');
     }
@@ -377,7 +391,7 @@ class ModelDownloadNotifier extends StateNotifier<ModelDownloadState> {
         importQueue: List<String>.from(remaining),
       );
 
-      final ok = await _importSingleFile(item.path, item.name);
+      final ok = await _importSingleFile(item);
       if (ok) {
         importedCount++;
         await refreshDownloadedModels();
@@ -388,114 +402,154 @@ class ModelDownloadNotifier extends StateNotifier<ModelDownloadState> {
     return importedCount;
   }
 
-  Future<bool> _importSingleFile(String pickedPath, String name) async {
-    final srcFile = File(pickedPath);
-    if (!await srcFile.exists() || await srcFile.length() < 4) {
-      return false;
-    }
-
-    final raf = await srcFile.open();
-    final magic = await raf.read(4);
-    await raf.close();
-    if (String.fromCharCodes(magic) != 'GGUF') {
-      return false;
-    }
-
-    final totalBytes = await srcFile.length();
-    final totalMb = totalBytes ~/ (1024 * 1024);
-
-    state = state.copyWith(
-      isImporting: true,
-      activeDownloadingFilename: name,
-      progress: {...state.progress, name: 0.0},
-      downloadSpeed: 'Preparing…',
-      eta: '',
-      downloadedMb: 0,
-      totalMb: totalMb,
-    );
-
+  Future<bool> _importSingleFile(ImportFileItem item) async {
+    final name = item.name;
     final modelsDir = await getModelsDirectory();
     final destinationPath = '$modelsDir/$name';
     final destFile = File(destinationPath);
 
-    try {
-      if (await destFile.exists()) {
-        await destFile.delete();
+    int totalBytes = item.sizeBytes ?? 0;
+    Stream<List<int>>? stream = item.readStream;
+
+    if (stream == null && item.path != null) {
+      final srcFile = File(item.path!);
+      if (!await srcFile.exists() || await srcFile.length() < 4) {
+        return false;
       }
+      final raf = await srcFile.open();
+      final magic = await raf.read(4);
+      await raf.close();
+      if (String.fromCharCodes(magic) != 'GGUF') {
+        return false;
+      }
+      totalBytes = await srcFile.length();
+      final totalMb = totalBytes ~/ (1024 * 1024);
+
+      state = state.copyWith(
+        isImporting: true,
+        activeDownloadingFilename: name,
+        progress: {...state.progress, name: 0.0},
+        downloadSpeed: '0.0 MB/s',
+        eta: '',
+        downloadedMb: 0,
+        totalMb: totalMb,
+      );
 
       try {
+        if (await destFile.exists()) await destFile.delete();
         await srcFile.rename(destinationPath);
         state = state.copyWith(
           progress: {...state.progress, name: 1.0},
           downloadSpeed: 'Moved',
           downloadedMb: totalMb,
         );
+        return true;
       } catch (_) {
-        // Cross-filesystem copy with live speed, memory & ETA tracking
-        final sink = destFile.openWrite();
-        int copiedBytes = 0;
-        int lastBytes = 0;
-        DateTime lastSpeedTime = DateTime.now();
-        DateTime lastUiUpdate = DateTime.now();
-        String currentSpeed = 'Copying…';
-        String currentEta = '';
+        stream = srcFile.openRead();
+      }
+    }
 
-        await for (final chunk in srcFile.openRead()) {
-          if (_importCancelled) {
-            await sink.close();
-            if (await destFile.exists()) await destFile.delete();
-            return false;
-          }
+    if (stream == null) return false;
 
-          sink.add(chunk);
-          copiedBytes += chunk.length;
+    final totalMb = totalBytes ~/ (1024 * 1024);
+    state = state.copyWith(
+      isImporting: true,
+      activeDownloadingFilename: name,
+      progress: {...state.progress, name: 0.0},
+      downloadSpeed: '0.0 MB/s',
+      eta: '',
+      downloadedMb: 0,
+      totalMb: totalMb,
+    );
 
-          final now = DateTime.now();
-          final speedDelta =
-              now.difference(lastSpeedTime).inMilliseconds / 1000.0;
-          if (speedDelta >= 0.5) {
-            final bytesDelta = copiedBytes - lastBytes;
-            final bytesPerSec = bytesDelta / speedDelta;
-            if (bytesPerSec >= 1024 * 1024) {
-              currentSpeed =
-                  '${(bytesPerSec / (1024 * 1024)).toStringAsFixed(1)} MB/s';
-            } else if (bytesPerSec > 0) {
-              currentSpeed = '${(bytesPerSec / 1024).toStringAsFixed(0)} KB/s';
+    try {
+      if (await destFile.exists()) {
+        await destFile.delete();
+      }
+
+      final sink = destFile.openWrite();
+      int copiedBytes = 0;
+      int lastBytes = 0;
+      DateTime lastSpeedTime = DateTime.now();
+      DateTime lastUiUpdate = DateTime.now();
+      String currentSpeed = '0.0 MB/s';
+      String currentEta = '';
+      bool checkedMagic = false;
+      final headerBytes = <int>[];
+
+      await for (final chunk in stream) {
+        if (_importCancelled) {
+          await sink.close();
+          if (await destFile.exists()) await destFile.delete();
+          return false;
+        }
+
+        if (!checkedMagic) {
+          headerBytes.addAll(chunk.take(4 - headerBytes.length));
+          if (headerBytes.length >= 4) {
+            checkedMagic = true;
+            if (String.fromCharCodes(headerBytes.take(4)) != 'GGUF') {
+              await sink.close();
+              if (await destFile.exists()) await destFile.delete();
+              return false;
             }
-
-            final remainingBytes = totalBytes - copiedBytes;
-            if (bytesPerSec > 0 && remainingBytes > 0) {
-              final sec = (remainingBytes / bytesPerSec).round();
-              currentEta = sec >= 60 ? '${sec ~/ 60}m ${sec % 60}s' : '${sec}s';
-            }
-
-            lastBytes = copiedBytes;
-            lastSpeedTime = now;
-          }
-
-          if (now.difference(lastUiUpdate).inMilliseconds >= 200 ||
-              copiedBytes >= totalBytes) {
-            lastUiUpdate = now;
-            final p = totalBytes > 0
-                ? (copiedBytes / totalBytes).clamp(0.0, 1.0)
-                : 0.0;
-            state = state.copyWith(
-              progress: {...state.progress, name: p},
-              downloadSpeed: currentSpeed,
-              eta: currentEta,
-              downloadedMb: copiedBytes ~/ (1024 * 1024),
-              totalMb: totalMb,
-            );
           }
         }
-        await sink.flush();
+
+        sink.add(chunk);
+        copiedBytes += chunk.length;
+
+        final now = DateTime.now();
+        final speedDelta =
+            now.difference(lastSpeedTime).inMilliseconds / 1000.0;
+        if (speedDelta >= 0.5) {
+          final bytesDelta = copiedBytes - lastBytes;
+          final bytesPerSec = bytesDelta / speedDelta;
+          if (bytesPerSec >= 1024 * 1024) {
+            currentSpeed =
+                '${(bytesPerSec / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+          } else if (bytesPerSec > 0) {
+            currentSpeed = '${(bytesPerSec / 1024).toStringAsFixed(0)} KB/s';
+          }
+
+          final remainingBytes = totalBytes - copiedBytes;
+          if (bytesPerSec > 0 && remainingBytes > 0) {
+            final sec = (remainingBytes / bytesPerSec).round();
+            currentEta = sec >= 60 ? '${sec ~/ 60}m ${sec % 60}s' : '${sec}s';
+          }
+
+          lastBytes = copiedBytes;
+          lastSpeedTime = now;
+        }
+
+        if (now.difference(lastUiUpdate).inMilliseconds >= 200 ||
+            (totalBytes > 0 && copiedBytes >= totalBytes)) {
+          lastUiUpdate = now;
+          final p =
+              totalBytes > 0 ? (copiedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
+          state = state.copyWith(
+            progress: {...state.progress, name: p},
+            downloadSpeed: currentSpeed,
+            eta: currentEta,
+            downloadedMb: copiedBytes ~/ (1024 * 1024),
+            totalMb: totalMb,
+          );
+        }
+      }
+
+      if (!checkedMagic) {
         await sink.close();
+        if (await destFile.exists()) await destFile.delete();
+        return false;
+      }
 
-        if (pickedPath.contains('file_picker')) {
-          try {
-            await srcFile.delete();
-          } catch (_) {}
-        }
+      await sink.flush();
+      await sink.close();
+
+      if (item.path != null && item.path!.contains('file_picker')) {
+        try {
+          await File(item.path!).delete();
+        } catch (_) {}
       }
       return true;
     } catch (_) {
