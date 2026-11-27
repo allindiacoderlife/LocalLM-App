@@ -24,6 +24,7 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
   String _selectedScope = 'browse'; // 'local', 'browse', 'online'
   String _selectedCategory = 'chat'; // 'chat', 'image', 'uncensored', 'vision'
   bool? _sortBySizeAsc; // null = default order, true = asc, false = desc
+  bool _isPreparingImport = false;
 
   List<LocalModelPreset> get _filteredPresets {
     var list = LocalModelPresets.all
@@ -41,31 +42,164 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
   }
 
   Future<void> _importLocalFile() async {
-    final result = await FilePicker.pickFiles(type: FileType.any);
+    if (_isPreparingImport ||
+        ref.read(modelDownloadProvider).activeDownloadingFilename != null) {
+      showToast(
+        context,
+        'Busy',
+        'Please wait for the current operation to finish.',
+        tone: ToastTone.warning,
+      );
+      return;
+    }
 
-    if (result != null && result.files.single.path != null) {
-      final pickedPath = result.files.single.path!;
-      final name = result.files.single.name;
-      if (!name.toLowerCase().endsWith('.gguf')) {
-        if (mounted) {
-          showToast(context, 'Invalid format',
-              'Please select a valid .gguf model file.',
+    final t = AppTokens.of(context);
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: t.hairline,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Import GGUF Models', style: t.title),
+              const SizedBox(height: 4),
+              Text(
+                'Pick one or multiple .gguf files, or scan an entire folder.',
+                style: t.caption,
+              ),
+              const SizedBox(height: 16),
+              AppGroup(
+                dividerIndent: 56,
+                children: [
+                  AppRow(
+                    icon: Icons.insert_drive_file_outlined,
+                    title: 'Select File(s)',
+                    subtitle: 'Choose one or more .gguf model files',
+                    chevron: true,
+                    onTap: () => Navigator.pop(ctx, 'files'),
+                  ),
+                  AppRow(
+                    icon: Icons.folder_outlined,
+                    title: 'Select Folder',
+                    subtitle: 'Import all .gguf models inside a folder',
+                    chevron: true,
+                    onTap: () => Navigator.pop(ctx, 'folder'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+
+    try {
+      final queue = <({String path, String name})>[];
+
+      setState(() => _isPreparingImport = true);
+
+      if (choice == 'files') {
+        final result = await FilePicker.pickFiles(
+          type: FileType.any,
+          allowMultiple: true,
+        );
+        if (result != null) {
+          for (final f in result.files) {
+            if (f.path != null && f.name.toLowerCase().endsWith('.gguf')) {
+              queue.add((path: f.path!, name: f.name));
+            }
+          }
+        }
+      } else if (choice == 'folder') {
+        final dirPath = await FilePicker.getDirectoryPath();
+        if (dirPath != null) {
+          final dir = Directory(dirPath);
+          if (await dir.exists()) {
+            await for (final entity
+                in dir.list(recursive: true, followLinks: false)) {
+              if (entity is File &&
+                  entity.path.toLowerCase().endsWith('.gguf')) {
+                final name = entity.uri.pathSegments.last;
+                queue.add((path: entity.path, name: name));
+              }
+            }
+          }
+        }
+      }
+
+      if (mounted) setState(() => _isPreparingImport = false);
+
+      if (queue.isEmpty) {
+        if (mounted && choice == 'folder') {
+          showToast(context, 'No models found',
+              'No .gguf files were found in that folder.',
               tone: ToastTone.warning);
         }
         return;
       }
 
-      final modelsDir =
-          await ref.read(modelDownloadProvider.notifier).getModelsDirectory();
-      final destinationPath = '$modelsDir/$name';
-      await File(pickedPath).copy(destinationPath);
-      await ref.read(modelDownloadProvider.notifier).refreshDownloadedModels();
-
       if (mounted) {
-        showToast(context, 'Imported', 'Imported $name successfully!',
-            tone: ToastTone.success);
+        setState(() => _selectedScope = 'local');
+      }
+
+      final count = await ref
+          .read(modelDownloadProvider.notifier)
+          .importModelQueue(queue);
+
+      if (mounted && count > 0) {
+        showToast(
+          context,
+          'Imported',
+          count == 1
+              ? 'Imported ${queue.first.name} successfully!'
+              : 'Imported $count models successfully!',
+          tone: ToastTone.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isPreparingImport = false);
+        showToast(context, 'Import failed',
+            e.toString().replaceFirst('Exception: ', ''),
+            tone: ToastTone.error);
       }
     }
+  }
+
+  void _startDownload(LocalModelPreset model) {
+    final active = ref.read(modelDownloadProvider).activeDownloadingFilename;
+    if (active != null) {
+      showToast(
+        context,
+        'Download in progress',
+        'Please wait for the current download to finish or cancel it first.',
+        tone: ToastTone.warning,
+      );
+      return;
+    }
+    Haptics.lightImpact();
+    ref.read(modelDownloadProvider.notifier).downloadModel(model);
   }
 
   void _showModelDetails(LocalModelPreset model) {
@@ -154,12 +288,7 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                 label: 'Download (${model.sizeMb.toStringAsFixed(0)} MB)',
                 onTap: () {
                   Navigator.pop(ctx);
-                  Haptics.lightImpact();
-                  ref.read(modelDownloadProvider.notifier).downloadModel(model);
-                  if (mounted) {
-                    showToast(
-                        context, 'Downloading', 'Downloading ${model.name}...');
-                  }
+                  _startDownload(model);
                 },
               ),
             ],
@@ -294,6 +423,7 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
     final downloadState = ref.watch(modelDownloadProvider);
+    final inferenceState = ref.watch(localInferenceProvider);
 
     return Scaffold(
       backgroundColor: t.bg,
@@ -346,9 +476,58 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
           ),
           const SizedBox(height: 16),
 
-          // ── Active Download Progress Card (Screenshots 1 & 3) ──
+          // ── Importing / Staging File Banner ──
+          if (_isPreparingImport)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: t.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: t.hairline, width: 0.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: t.accent,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Preparing model file for import…',
+                          style: t.bodyStrong,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      minHeight: 4,
+                      backgroundColor: t.fill,
+                      color: t.accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // ── Active Download / Import Progress Card ──
           if (downloadState.activeDownloadingFilename != null)
             _buildActiveDownloadCard(t, downloadState),
+
+          // ── Active Model Loading into RAM Card ──
+          if (inferenceState.isLoadingModel)
+            _buildLoadingModelCard(t, inferenceState),
 
           if (_selectedScope == 'browse')
             ..._buildBrowseContent(t)
@@ -492,6 +671,79 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
   }
 
   // ── ACTIVE DOWNLOAD PROGRESS CARD (Screenshots 1 & 3) ──
+  Widget _buildLoadingModelCard(
+      AppTokens t, LocalInferenceState inferenceState) {
+    final modelName = inferenceState.loadingModelName ?? 'Model';
+    final sizeMb = inferenceState.loadingModelSizeMb;
+    final sizeStr = sizeMb != null
+        ? (sizeMb >= 1024
+            ? '${(sizeMb / 1024).toStringAsFixed(2)} GB'
+            : '${sizeMb.toStringAsFixed(0)} MB')
+        : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: t.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: t.accent.withValues(alpha: 0.35), width: 0.8),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: t.accent.withValues(alpha: 0.14),
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: t.accent,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  modelName,
+                  style: t.bodyStrong,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    backgroundColor: t.fill,
+                    valueColor: AlwaysStoppedAnimation<Color>(t.accent),
+                    minHeight: 3.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  sizeStr.isNotEmpty
+                      ? 'Loading into RAM ($sizeStr)…'
+                      : 'Loading into RAM…',
+                  style: t.caption.copyWith(fontSize: 12, color: t.accent),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActiveDownloadCard(
       AppTokens t, ModelDownloadState downloadState) {
     final filename = downloadState.activeDownloadingFilename;
@@ -515,12 +767,17 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
     final percent = (prog * 100).toInt();
     final speed = downloadState.downloadSpeed.isNotEmpty
         ? downloadState.downloadSpeed
-        : '0 MB/s';
+        : (downloadState.isImporting ? 'Copying…' : '0 MB/s');
     final eta = downloadState.eta.isNotEmpty ? downloadState.eta : '';
+    final memStr = downloadState.totalMb > 0
+        ? '${downloadState.downloadedMb}/${downloadState.totalMb} MB'
+        : '';
     final infoParts = <String>['$percent%'];
+    if (memStr.isNotEmpty) infoParts.add(memStr);
     if (speed.isNotEmpty) infoParts.add(speed);
     if (eta.isNotEmpty) infoParts.add('$eta left');
     final infoText = infoParts.join(' · ');
+    final queueCount = downloadState.importQueue.length;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -539,7 +796,13 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
               shape: BoxShape.circle,
               color: t.fill,
             ),
-            child: Icon(Icons.arrow_downward_rounded, size: 20, color: t.text),
+            child: Icon(
+              downloadState.isImporting
+                  ? Icons.drive_file_move_outlined
+                  : Icons.arrow_downward_rounded,
+              size: 20,
+              color: t.text,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -567,6 +830,15 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                   infoText,
                   style: t.caption.copyWith(fontSize: 12),
                 ),
+                if (queueCount > 0) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    'Queue ($queueCount waiting): ${downloadState.importQueue.first}${queueCount > 1 ? '…' : ''}',
+                    style: t.small.copyWith(color: t.accent),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
@@ -673,12 +945,7 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                           size: 30)
                     else
                       GestureDetector(
-                        onTap: () {
-                          Haptics.lightImpact();
-                          ref
-                              .read(modelDownloadProvider.notifier)
-                              .downloadModel(model);
-                        },
+                        onTap: () => _startDownload(model),
                         child: Container(
                           width: 28,
                           height: 28,
@@ -739,12 +1006,7 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                 _buildDownloadProgressWidget(t, prog, model.filename, size: 34)
               else
                 GestureDetector(
-                  onTap: () {
-                    Haptics.lightImpact();
-                    ref
-                        .read(modelDownloadProvider.notifier)
-                        .downloadModel(model);
-                  },
+                  onTap: () => _startDownload(model),
                   child: Container(
                     width: 32,
                     height: 32,
@@ -852,6 +1114,8 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
             Builder(builder: (ctx) {
               final isLoaded = inferenceState.isModelLoaded &&
                   inferenceState.loadedModelName == fileName;
+              final isLoadingThis = inferenceState.isLoadingModel &&
+                  inferenceState.loadingModelName == fileName;
               final (badge, color) = _getBadgeInfo(fileName);
 
               return ConstrainedBox(
@@ -872,13 +1136,29 @@ class _ModelsTabViewState extends ConsumerState<ModelsTabView> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 2),
-                            Text(isLoaded ? '● Loaded into RAM' : 'Local file',
-                                style: t.caption),
+                            Text(
+                                isLoadingThis
+                                    ? 'Loading into RAM…'
+                                    : (isLoaded
+                                        ? '● Loaded into RAM'
+                                        : 'Local file'),
+                                style: t.caption.copyWith(
+                                  color: isLoadingThis ? t.accent : t.muted,
+                                )),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      if (isLoaded)
+                      if (isLoadingThis)
+                        SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: t.accent,
+                          ),
+                        )
+                      else if (isLoaded)
                         AppTag('Active', color: t.green)
                       else
                         PillButton(

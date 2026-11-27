@@ -27,6 +27,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
   bool _hasInputText = false;
   bool _speechInitialized = false;
   bool _isListening = false;
+  bool _isHoldingMic = false;
   String _speechBaseText = '';
 
   @override
@@ -48,24 +49,26 @@ class _ChatViewState extends ConsumerState<ChatView> {
     super.dispose();
   }
 
-  Future<void> _toggleListening() async {
-    if (_isListening) {
-      await _speech.stop();
-      if (mounted) setState(() => _isListening = false);
-      return;
-    }
+  Future<void> _startListening() async {
+    if (_isListening) return;
 
     if (!_speechInitialized) {
       _speechInitialized = await _speech.initialize(
         onStatus: (status) {
           if (!mounted) return;
           if (status == 'done' || status == 'notListening') {
-            setState(() => _isListening = false);
+            setState(() {
+              _isListening = false;
+              _isHoldingMic = false;
+            });
           }
         },
         onError: (err) {
           if (!mounted) return;
-          setState(() => _isListening = false);
+          setState(() {
+            _isListening = false;
+            _isHoldingMic = false;
+          });
           showToast(context, 'Voice input', err.errorMsg,
               tone: ToastTone.warning);
         },
@@ -74,6 +77,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
 
     if (!_speechInitialized) {
       if (mounted) {
+        setState(() => _isHoldingMic = false);
         showToast(
           context,
           'Microphone unavailable',
@@ -104,6 +108,25 @@ class _ChatViewState extends ConsumerState<ChatView> {
         );
       },
     );
+  }
+
+  Future<void> _stopListening() async {
+    if (!_isListening && !_isHoldingMic) return;
+    await _speech.stop();
+    if (mounted) {
+      setState(() {
+        _isListening = false;
+        _isHoldingMic = false;
+      });
+    }
+  }
+
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _stopListening();
+    } else {
+      await _startListening();
+    }
   }
 
   void _scrollToBottom() {
@@ -256,9 +279,11 @@ class _ChatViewState extends ConsumerState<ChatView> {
     });
 
     final modelDisplayName = isLocalMode
-        ? (localState.isModelLoaded
-            ? localState.loadedModelName!
-            : 'No Local Model')
+        ? (localState.isLoadingModel
+            ? 'Loading ${localState.loadingModelName ?? "model"}…'
+            : (localState.isModelLoaded
+                ? localState.loadedModelName!
+                : 'No Local Model'))
         : '${chatState.selectedProvider.name.toUpperCase()} · ${chatState.selectedModel}';
 
     return Scaffold(
@@ -829,19 +854,27 @@ class _ChatViewState extends ConsumerState<ChatView> {
                     ),
                   )
                 else if (_isListening)
-                  GlassContainer(
-                    borderRadius: 26,
-                    blur: 24,
-                    color: t.red.withValues(alpha: 0.85),
-                    shadows: t.glassShadows,
-                    onTap: _toggleListening,
-                    child: const SizedBox(
-                      width: 50,
-                      height: 50,
-                      child: Icon(
-                        Icons.mic_rounded,
-                        size: 24,
-                        color: Colors.white,
+                  GestureDetector(
+                    onLongPressEnd: (_) => _stopListening(),
+                    onLongPressCancel: _stopListening,
+                    child: AnimatedScale(
+                      scale: _isHoldingMic ? 1.15 : 1.0,
+                      duration: const Duration(milliseconds: 140),
+                      child: GlassContainer(
+                        borderRadius: 26,
+                        blur: 24,
+                        color: t.red.withValues(alpha: 0.85),
+                        shadows: t.glassShadows,
+                        onTap: _toggleListening,
+                        child: const SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: Icon(
+                            Icons.mic_rounded,
+                            size: 24,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   )
@@ -866,22 +899,31 @@ class _ChatViewState extends ConsumerState<ChatView> {
                     ),
                   )
                 else
-                  GlassContainer(
-                    borderRadius: 26,
-                    blur: 14,
-                    quality: GlassQuality.premium,
-                    color: t.isDark
-                        ? const Color(0x38161A22)
-                        : const Color(0x66FFFFFF),
-                    shadows: t.glassShadows,
-                    onTap: _toggleListening,
-                    child: SizedBox(
-                      width: 50,
-                      height: 50,
-                      child: Icon(
-                        Icons.mic_none_rounded,
-                        size: 24,
-                        color: t.text,
+                  GestureDetector(
+                    onLongPressStart: (_) {
+                      Haptics.mediumImpact();
+                      setState(() => _isHoldingMic = true);
+                      _startListening();
+                    },
+                    onLongPressEnd: (_) => _stopListening(),
+                    onLongPressCancel: _stopListening,
+                    child: GlassContainer(
+                      borderRadius: 26,
+                      blur: 14,
+                      quality: GlassQuality.premium,
+                      color: t.isDark
+                          ? const Color(0x38161A22)
+                          : const Color(0x66FFFFFF),
+                      shadows: t.glassShadows,
+                      onTap: _toggleListening,
+                      child: SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: Icon(
+                          Icons.mic_none_rounded,
+                          size: 24,
+                          color: t.text,
+                        ),
                       ),
                     ),
                   ),

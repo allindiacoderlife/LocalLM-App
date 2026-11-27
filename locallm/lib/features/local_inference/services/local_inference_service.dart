@@ -9,6 +9,8 @@ class LocalInferenceState {
   final bool isGenerating;
   final String? loadedModelName;
   final String? loadedModelPath;
+  final String? loadingModelName;
+  final double? loadingModelSizeMb;
   final double tokensPerSecond;
   final int totalTokensGenerated;
   final String? error;
@@ -19,6 +21,8 @@ class LocalInferenceState {
     this.isGenerating = false,
     this.loadedModelName,
     this.loadedModelPath,
+    this.loadingModelName,
+    this.loadingModelSizeMb,
     this.tokensPerSecond = 0.0,
     this.totalTokensGenerated = 0,
     this.error,
@@ -30,11 +34,14 @@ class LocalInferenceState {
     bool? isGenerating,
     String? loadedModelName,
     String? loadedModelPath,
+    String? loadingModelName,
+    double? loadingModelSizeMb,
     double? tokensPerSecond,
     int? totalTokensGenerated,
     String? error,
     bool clearError = false,
     bool clearModel = false,
+    bool clearLoading = false,
   }) {
     return LocalInferenceState(
       isModelLoaded: clearModel ? false : (isModelLoaded ?? this.isModelLoaded),
@@ -42,6 +49,8 @@ class LocalInferenceState {
       isGenerating: isGenerating ?? this.isGenerating,
       loadedModelName: clearModel ? null : (loadedModelName ?? this.loadedModelName),
       loadedModelPath: clearModel ? null : (loadedModelPath ?? this.loadedModelPath),
+      loadingModelName: clearLoading ? null : (loadingModelName ?? this.loadingModelName),
+      loadingModelSizeMb: clearLoading ? null : (loadingModelSizeMb ?? this.loadingModelSizeMb),
       tokensPerSecond: tokensPerSecond ?? this.tokensPerSecond,
       totalTokensGenerated: totalTokensGenerated ?? this.totalTokensGenerated,
       error: clearError ? null : (error ?? this.error),
@@ -69,7 +78,20 @@ class LocalInferenceNotifier extends StateNotifier<LocalInferenceState> {
       return;
     }
 
-    state = state.copyWith(isLoadingModel: true, clearError: true);
+    double? fileSizeMb;
+    try {
+      final f = File(modelPath);
+      if (f.existsSync()) {
+        fileSizeMb = f.lengthSync() / (1024 * 1024);
+      }
+    } catch (_) {}
+
+    state = state.copyWith(
+      isLoadingModel: true,
+      loadingModelName: modelName,
+      loadingModelSizeMb: fileSizeMb,
+      clearError: true,
+    );
 
     try {
       if (_controller != null) {
@@ -90,10 +112,12 @@ class LocalInferenceNotifier extends StateNotifier<LocalInferenceState> {
         isLoadingModel: false,
         loadedModelName: modelName,
         loadedModelPath: modelPath,
+        clearLoading: true,
       );
     } catch (e) {
       state = state.copyWith(
         isLoadingModel: false,
+        clearLoading: true,
         error: 'Failed to load model: $e',
       );
     }

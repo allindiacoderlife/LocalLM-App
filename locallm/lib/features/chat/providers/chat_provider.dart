@@ -89,6 +89,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   ChatNotifier(this._ref) : super(ChatState()) {
     _loadState();
+    _ref.listen<LocalInferenceState>(localInferenceProvider, (prev, next) {
+      final newlyLoaded = next.isModelLoaded &&
+          (prev == null ||
+              !prev.isModelLoaded ||
+              prev.loadedModelPath != next.loadedModelPath);
+      if (newlyLoaded && state.inferenceMode != InferenceMode.local) {
+        setInferenceMode(InferenceMode.local);
+      }
+    });
   }
 
   void _loadState() {
