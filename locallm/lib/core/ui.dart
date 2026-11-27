@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/cupertino.dart' show CupertinoSwitch;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart' as lg;
@@ -148,6 +149,28 @@ class AppTokens {
   TextStyle get mono => TextStyle(fontFamily: 'monospace', fontSize: 12.5, color: text);
 }
 
+// ── Glass UI Scope ───────────────────────────────────────────────────────
+
+/// Controls whether Liquid Glass shaders & animations are enabled.
+class AppGlassScope extends InheritedWidget {
+  final bool enabled;
+
+  const AppGlassScope({
+    super.key,
+    required this.enabled,
+    required super.child,
+  });
+
+  static bool of(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<AppGlassScope>();
+    return scope?.enabled ?? true;
+  }
+
+  @override
+  bool updateShouldNotify(AppGlassScope oldWidget) =>
+      enabled != oldWidget.enabled;
+}
+
 // ── Glass Core Component ───────────────────────────────────────────────
 
 /// Spatial frosted glass container with blur, specular hairline rim,
@@ -181,33 +204,48 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
-    final bg = color ?? t.glass;
+    final useGlass = AppGlassScope.of(context);
+    final bg = color ?? (useGlass ? t.glass : t.surface);
     final r = BorderRadius.circular(borderRadius);
 
-    Widget content = lg.AdaptiveGlass(
-      shape: lg.LiquidRoundedSuperellipse(borderRadius: borderRadius),
-      quality: quality,
-      settings: lg.LiquidGlassSettings(
-        blur: blur,
-        glassColor: bg,
-        thickness: 24,
-        chromaticAberration: 0.012,
-        specularSharpness: lg.GlassSpecularSharpness.medium,
-        lightIntensity: t.isDark ? 0.45 : 0.65,
-      ),
-      child: Container(
-        padding: padding,
-        decoration: BoxDecoration(
-          borderRadius: r,
-          border: border ??
-              Border.all(
-                color: t.glassBorder,
-                width: 0.65,
+    Widget content = useGlass
+        ? lg.AdaptiveGlass(
+            shape: lg.LiquidRoundedSuperellipse(borderRadius: borderRadius),
+            quality: quality,
+            settings: lg.LiquidGlassSettings(
+              blur: blur,
+              glassColor: bg,
+              thickness: 24,
+              chromaticAberration: 0.012,
+              specularSharpness: lg.GlassSpecularSharpness.medium,
+              lightIntensity: t.isDark ? 0.45 : 0.65,
+            ),
+            child: Container(
+              padding: padding,
+              decoration: BoxDecoration(
+                borderRadius: r,
+                border: border ??
+                    Border.all(
+                      color: t.glassBorder,
+                      width: 0.65,
+                    ),
               ),
-        ),
-        child: child,
-      ),
-    );
+              child: child,
+            ),
+          )
+        : Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: r,
+              border: border ??
+                  Border.all(
+                    color: t.hairline,
+                    width: 0.75,
+                  ),
+            ),
+            child: child,
+          );
 
     if (onTap != null) {
       content = Material(
@@ -706,8 +744,61 @@ class AppSegmented<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
+    final useGlass = AppGlassScope.of(context);
     final index =
         items.indexWhere((e) => e.$1 == selected).clamp(0, items.length - 1);
+
+    if (!useGlass) {
+      return Container(
+        height: height,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: t.isDark ? const Color(0xFF1E222D) : const Color(0xFFE5E7EB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: t.isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.04),
+            width: 0.75,
+          ),
+        ),
+        child: Row(
+          children: items.map((item) {
+            final isSelected = item.$1 == selected;
+            return Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Haptics.selectionClick();
+                  onChanged(item.$1);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? (t.isDark ? const Color(0xFF2C3242) : Colors.white)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Text(
+                    item.$2,
+                    style: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? t.text : t.muted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    }
 
     return lg.GlassSegmentedControl(
       segments: [
@@ -754,6 +845,21 @@ class AppSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
+    if (!AppGlassScope.of(context)) {
+      return CupertinoSwitch(
+        value: value,
+        activeTrackColor: activeColor ?? t.green,
+        inactiveTrackColor:
+            t.isDark ? const Color(0xFF333846) : const Color(0xFFD1D5DB),
+        thumbColor: Colors.white,
+        onChanged: onChanged == null
+            ? null
+            : (val) {
+                Haptics.selectionClick();
+                onChanged!(val);
+              },
+      );
+    }
     return lg.GlassSwitch(
       value: value,
       onChanged: onChanged,
@@ -788,8 +894,33 @@ class AppSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppTokens.of(context);
+    final clamped = value.clamp(min, max);
+    if (!AppGlassScope.of(context)) {
+      final trackColor = activeColor ?? t.accent;
+      return SliderTheme(
+        data: SliderThemeData(
+          trackHeight: 4.5,
+          activeTrackColor: trackColor,
+          inactiveTrackColor:
+              t.isDark ? const Color(0xFF333846) : const Color(0xFFE5E7EB),
+          thumbColor: Colors.white,
+          overlayColor: trackColor.withValues(alpha: 0.15),
+          thumbShape:
+              const RoundSliderThumbShape(enabledThumbRadius: 9, elevation: 3),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+          tickMarkShape: SliderTickMarkShape.noTickMark,
+        ),
+        child: Slider(
+          value: clamped,
+          min: min,
+          max: max,
+          divisions: divisions,
+          onChanged: onChanged,
+        ),
+      );
+    }
     return lg.GlassSlider(
-      value: value.clamp(min, max),
+      value: clamped,
       onChanged: onChanged,
       min: min,
       max: max,

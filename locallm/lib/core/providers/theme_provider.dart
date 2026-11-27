@@ -72,3 +72,27 @@ final fontScaleProvider =
     StateNotifierProvider<FontScaleNotifier, double>((ref) {
   return FontScaleNotifier();
 });
+
+class GlassUiNotifier extends StateNotifier<bool> {
+  GlassUiNotifier() : super(_loadInitial());
+
+  static bool _loadInitial() {
+    try {
+      final box = Hive.box(AppConstants.settingsBox);
+      return box.get('glass_ui_enabled', defaultValue: true) as bool;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  void setEnabled(bool enabled) {
+    state = enabled;
+    final box = Hive.box(AppConstants.settingsBox);
+    box.put('glass_ui_enabled', enabled);
+  }
+}
+
+final glassUiEnabledProvider =
+    StateNotifierProvider<GlassUiNotifier, bool>((ref) {
+  return GlassUiNotifier();
+});

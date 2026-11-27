@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../../core/haptics.dart';
+import '../../../core/providers/theme_provider.dart';
 import '../../chat/views/chat_view.dart';
 import '../../models/views/models_tab_view.dart';
 import '../../server/views/server_view.dart';
@@ -58,53 +60,56 @@ class HomeView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentTab = ref.watch(homeTabProvider);
+    final useGlass = !Platform.isAndroid || ref.watch(glassUiEnabledProvider);
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF07080A) : const Color(0xFFF3F5F8),
-      extendBody: true,
+      extendBody: useGlass,
       body: Stack(
         children: [
-          // Ambient Spatial Glass Canvas (Soft chromatic light pools)
-          Positioned(
-            top: -120,
-            left: -80,
-            child: IgnorePointer(
-              child: Container(
-                width: 320,
-                height: 320,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      (isDark ? const Color(0xFF0A84FF) : const Color(0xFF4FACFE))
-                          .withValues(alpha: isDark ? 0.14 : 0.18),
-                      Colors.transparent,
-                    ],
+          if (useGlass) ...[
+            // Ambient Spatial Glass Canvas (Soft chromatic light pools)
+            Positioned(
+              top: -120,
+              left: -80,
+              child: IgnorePointer(
+                child: Container(
+                  width: 320,
+                  height: 320,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        (isDark ? const Color(0xFF0A84FF) : const Color(0xFF4FACFE))
+                            .withValues(alpha: isDark ? 0.14 : 0.18),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: 60,
-            right: -90,
-            child: IgnorePointer(
-              child: Container(
-                width: 340,
-                height: 340,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      (isDark ? const Color(0xFF5E5CE6) : const Color(0xFFB388FF))
-                          .withValues(alpha: isDark ? 0.10 : 0.14),
-                      Colors.transparent,
-                    ],
+            Positioned(
+              bottom: 60,
+              right: -90,
+              child: IgnorePointer(
+                child: Container(
+                  width: 340,
+                  height: 340,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        (isDark ? const Color(0xFF5E5CE6) : const Color(0xFFB388FF))
+                            .withValues(alpha: isDark ? 0.10 : 0.14),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
           // Views
           IndexedStack(
             index: currentTab,
@@ -112,7 +117,45 @@ class HomeView extends ConsumerWidget {
           ),
         ],
       ),
-      bottomNavigationBar: _buildGlassDock(context, ref, currentTab, isDark),
+      bottomNavigationBar: useGlass
+          ? _buildGlassDock(context, ref, currentTab, isDark)
+          : _buildSolidNav(context, ref, currentTab, isDark),
+    );
+  }
+
+  Widget _buildSolidNav(
+      BuildContext context, WidgetRef ref, int current, bool isDark) {
+    final accent = isDark ? const Color(0xFF0A84FF) : const Color(0xFF0071E3);
+    final bg = isDark ? const Color(0xFF101217) : Colors.white;
+    final muted = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73);
+    final hairline = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border(top: BorderSide(color: hairline, width: 0.5)),
+      ),
+      child: NavigationBar(
+        height: 64,
+        backgroundColor: bg,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: accent.withValues(alpha: 0.14),
+        selectedIndex: current,
+        onDestinationSelected: (i) {
+          Haptics.selectionClick();
+          ref.read(homeTabProvider.notifier).state = i;
+        },
+        destinations: [
+          for (final item in _tabs)
+            NavigationDestination(
+              icon: Icon(item.icon, color: muted),
+              selectedIcon: Icon(item.activeIcon, color: accent),
+              label: item.label,
+            ),
+        ],
+      ),
     );
   }
 

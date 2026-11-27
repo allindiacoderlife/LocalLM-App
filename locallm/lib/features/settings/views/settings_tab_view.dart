@@ -302,6 +302,19 @@ class _SettingsTabViewState extends ConsumerState<SettingsTabView> {
                   },
                 ),
               ),
+              if (Platform.isAndroid)
+                AppRow(
+                  icon: Icons.blur_on_rounded,
+                  title: 'Liquid Glass UI',
+                  subtitle: 'Frosted glass & liquid animations',
+                  trailing: AppSwitch(
+                    value: ref.watch(glassUiEnabledProvider),
+                    onChanged: (val) {
+                      Haptics.selectionClick();
+                      ref.read(glassUiEnabledProvider.notifier).setEnabled(val);
+                    },
+                  ),
+                ),
             ],
           ),
 
